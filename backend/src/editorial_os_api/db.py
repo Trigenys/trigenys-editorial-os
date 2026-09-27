@@ -1,6 +1,7 @@
 from functools import lru_cache
 
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
 
 from editorial_os_api.config import get_settings
 
