@@ -9,7 +9,16 @@
     "createBoardView": true
   },
   "bootstrap": {
-    "boardViewName": "AppFactory Board",
-    "phases": ["Discovery", "Foundation", "MVP", "Validation", "Release"]
+    "boardViewName": "Editorial OS Board",
+    "phases": [
+      "Discovery",
+      "Foundation",
+      "Orchestration",
+      "Agents",
+      "Editorial Safety",
+      "Integrations",
+      "Pilot",
+      "Release"
+    ]
   }
 }
