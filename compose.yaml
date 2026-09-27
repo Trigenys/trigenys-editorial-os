@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: editorial_os
+      POSTGRES_USER: editorial_os
+      POSTGRES_PASSWORD: editorial_os
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U editorial_os -d editorial_os"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - editorial_os_postgres:/var/lib/postgresql/data
+
+volumes:
+  editorial_os_postgres:
