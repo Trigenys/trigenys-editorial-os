@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bootstrap": "python scripts/bootstrap.py",
+    "dev:all": "python scripts/dev.py"
   },
   "dependencies": {
     "react": "^19.1.1",
