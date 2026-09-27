@@ -84,6 +84,14 @@ All external systems sit behind explicit interfaces. Initial candidates:
 - PostHog for product/content analytics;
 - Remotion for templated video after the core text/image path is stable.
 
+## Product policy references
+
+The implementation contract is split across:
+- [Product contract](product-contract.md) — agent responsibilities, gates, invariants and vertical-pack rules;
+- [Risk and confidence policy](risk-and-confidence.md) — evidence tiers, confidence classes and R0–R3 escalation;
+- [MVP metrics](mvp-metrics.md) — measurable exit criteria;
+- [ADRs](adr/README.md) — accepted architecture choices and exit strategies.
+
 ## Seven agents
 
 1. **Scout** — detects signals and normalizes source items.
@@ -137,12 +145,19 @@ Every side effect receives a stable idempotency key derived from the workflow ru
 - vertical-specific safety/privacy rules remain configurable;
 - public repo contains interfaces and examples only, never production credentials or private source lists.
 
+## Accepted initial architecture decisions
+
+- React/Vite console + Python/FastAPI service runtime — ADR-0001.
+- LangGraph as the first workflow-engine implementation behind an internal boundary — ADR-0002.
+- PostgreSQL as canonical product/domain state — ADR-0003.
+- Ports/adapters around every external provider — ADR-0004.
+- Editor-in-Chief as deterministic policy/orchestrator rather than an eighth agent — ADR-0005.
+
 ## Architecture decisions still to validate
 
-- LangGraph durable execution vs a thinner custom state engine;
 - storage strategy for large fetched documents/assets;
 - whether queues are necessary in MVP or Postgres-backed orchestration is sufficient;
 - provider contract for image generation;
 - deployment target.
 
-These decisions belong to ADRs and must be backed by real integration tests, not preference alone.
+Unresolved decisions require ADRs backed by integration evidence rather than preference alone.
