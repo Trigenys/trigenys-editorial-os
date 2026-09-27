@@ -62,3 +62,33 @@ Never derive downstream state from an unvalidated connector response shape.
 
 **RAIDER impact**  
 Strengthens Idempotent and Engineering-grade: validate mutation outputs before dependent writes.
+
+
+### 2026-09-27 — Concurrent initial Issue events created duplicate GitHub Projects
+
+**Category**  
+Automation / CI-CD / architecture
+
+**Context**  
+The initial backlog opened 18 Issues quickly while AppFactory Project Automation was also bootstrapping the repository's organization Project.
+
+**Symptom / near miss**  
+Concurrent first-run workers created Projects #6 and #7 with the same title. Early runs then failed with `Name has already been taken` and stale single-select option IDs. Later runs converged on Project #7.
+
+**Impact**  
+The active board became healthy, but Project #6 remains an orphan/partial duplicate requiring administrative cleanup. Issues #1 and #4 also needed an explicit user-authenticated resync into Project #7.
+
+**Root cause**  
+Normal synchronization concurrency is scoped per Issue/PR, which is correct after bootstrap, but Project creation/schema bootstrap mutates shared repository-level state and was not serialized as a shared critical section.
+
+**Resolution**  
+Project #7 was retained as the canonical board. Missing initial Issues were resynchronized through user-authenticated `issues: edited` events. Platform bug EagleFox31/appfactory-project-automation#68 records the permanent fix.
+
+**Prevention**  
+Serialize or otherwise make the initial Project creation/bootstrap transaction concurrency-safe while preserving issue-scoped concurrency after convergence. Add a burst regression test.
+
+**Generalized lesson**  
+Concurrency granularity must match mutation ownership: item-level locks are insufficient when initialization creates shared parent resources.
+
+**RAIDER impact**  
+Strengthens Idempotent, Durable and Retroactive behavior for greenfield bootstrap under real event bursts.
