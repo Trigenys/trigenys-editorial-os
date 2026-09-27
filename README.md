@@ -70,29 +70,55 @@ Read:
 
 ## Baseline
 
-- React 19
-- TypeScript
-- Vite
+- React 19 + TypeScript + Vite
 - Node.js 24 CI
+- Python 3.13 + FastAPI
+- SQLAlchemy 2.0 + psycopg 3
+- PostgreSQL
+- Alembic migrations
 - AppFactory Project Automation
 - AppFactory webapp blueprint marker
 
 ## Development
 
+Prerequisites: Node.js 24, Python 3.13+ and Docker.
+
+Bootstrap the repository idempotently:
+
 ```bash
-npm install
-npm run dev
+python scripts/bootstrap.py
 ```
 
-Validate the current frontend baseline with:
+Then start the React console and FastAPI service together:
+
+```bash
+python scripts/dev.py
+```
+
+Equivalent npm aliases are available:
+
+```bash
+npm run bootstrap
+npm run dev:all
+```
+
+Local endpoints:
+
+- Web console: http://127.0.0.1:5173
+- API: http://127.0.0.1:8000
+- API docs: http://127.0.0.1:8000/docs
+- Liveness: http://127.0.0.1:8000/health
+- Readiness: http://127.0.0.1:8000/health/ready
+
+Frontend-only validation:
 
 ```bash
 npm run typecheck
 npm run build
 ```
 
-Backend commands will be documented when the Foundation issue introduces the API runtime.
+Backend-only commands are documented in [backend/README.md](backend/README.md).
 
 ## Status
 
-**Discovery / product contract.** The MVP contract, risk/confidence model, human gates and initial architecture decisions are versioned. Implementation starts only after the Discovery contract is accepted through Issue #1.
+**Foundation / runtime.** The product contract is frozen. Issue #2 introduces the split React + FastAPI runtime, PostgreSQL, migration plumbing and dual-runtime CI before the editorial domain model is added in Issue #3.
