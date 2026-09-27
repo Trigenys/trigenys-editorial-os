@@ -2,6 +2,5 @@
   "schemaVersion": 1,
   "projectType": "webapp",
   "preset": "react-vite",
-  "blueprintVersion": 1,
-  "complete": false
+  "blueprintVersion": 1
 }

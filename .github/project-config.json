@@ -1,0 +1,15 @@
+{
+  "project": {
+    "owner": "Trigenys",
+    "title": "Trigenys Editorial OS Development",
+    "bootstrap": true,
+    "template": "appfactory-product",
+    "linkRepository": true,
+    "importOpenIssues": true,
+    "createBoardView": true
+  },
+  "bootstrap": {
+    "boardViewName": "AppFactory Board",
+    "phases": ["Discovery", "Foundation", "MVP", "Validation", "Release"]
+  }
+}
