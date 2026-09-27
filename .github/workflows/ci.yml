@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -19,3 +19,38 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm run typecheck
       - run: npm run build
+
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: editorial_os
+          POSTGRES_USER: editorial_os
+          POSTGRES_PASSWORD: editorial_os
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U editorial_os -d editorial_os"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      EDITORIAL_OS_ENVIRONMENT: test
+      EDITORIAL_OS_DATABASE_URL: postgresql+psycopg://editorial_os:editorial_os@localhost:5432/editorial_os
+      EDITORIAL_OS_DATABASE_ECHO: "false"
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e "./backend[dev]"
+      - run: python -m ruff check backend/src backend/tests backend/migrations scripts
+      - run: python -m mypy backend/src backend/tests scripts
+      - run: python -m pytest backend/tests -q
