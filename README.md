@@ -57,7 +57,11 @@ The repository is provisioned by **Trigenys AppFactory** and uses **AppFactory P
 Development proceeds issue-by-issue. Every issue has a verifiable Proof of Done and explicit dependencies.
 
 Read:
+- [Product contract](docs/product-contract.md)
+- [Risk & confidence policy](docs/risk-and-confidence.md)
+- [MVP success metrics](docs/mvp-metrics.md)
 - [Architecture](docs/architecture.md)
+- [Architecture Decision Records](docs/adr/README.md)
 - [Roadmap](docs/roadmap.md)
 - [PERT](docs/pert.md)
 - [Proof of Done](docs/proof-of-done.md)
@@ -91,4 +95,4 @@ Backend commands will be documented when the Foundation issue introduces the API
 
 ## Status
 
-**Bootstrap / Discovery.** The repository, architecture contract and executable backlog are being established before agent implementation begins.
+**Discovery / product contract.** The MVP contract, risk/confidence model, human gates and initial architecture decisions are versioned. Implementation starts only after the Discovery contract is accepted through Issue #1.
