@@ -17,7 +17,12 @@ from editorial_os_api.domain.enums import (
 from editorial_os_api.orchestration.models import GateResume, WorkflowCommand, WorkflowResult
 from editorial_os_api.orchestration.policy import GatePolicy
 from editorial_os_api.persistence.base import utcnow
-from editorial_os_api.persistence.models import AuditEvent, GateDecision, WorkflowAction, WorkflowRun
+from editorial_os_api.persistence.models import (
+    AuditEvent,
+    GateDecision,
+    WorkflowAction,
+    WorkflowRun,
+)
 
 TERMINAL_STATUSES = {
     WorkflowStatus.MEASURED,
