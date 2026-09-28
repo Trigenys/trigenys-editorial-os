@@ -64,6 +64,7 @@ Read:
 - [Domain model & audit ledger](docs/domain-model.md)
 - [LangGraph validation](docs/langgraph-validation.md)
 - [Model gateway & budgets](docs/model-gateway.md)
+- [Observability & correlation](docs/observability.md)
 - [Architecture Decision Records](docs/adr/README.md)
 - [Roadmap](docs/roadmap.md)
 - [PERT](docs/pert.md)
@@ -83,6 +84,7 @@ Read:
 - Deterministic WorkflowEngine + Gate A/B/C
 - Provider-agnostic model gateway + LiteLLM adapter
 - PostgreSQL model usage/budget ledger
+- Langfuse/PostHog observability adapters with structured redacted logs
 - AppFactory Project Automation
 - AppFactory webapp blueprint marker
 
@@ -128,4 +130,4 @@ Backend-only commands are documented in [backend/README.md](backend/README.md).
 
 ## Status
 
-**Model foundation.** The deterministic workflow engine is in place. Issue #5 adds a provider-agnostic model gateway, task-specific routes, durable run/agent budgets, structured-output validation/repair and deterministic CI model doubles.
+**Observability foundation.** Workflow/model state remains canonical in PostgreSQL. Issue #6 adds run-level correlation across API/orchestrator/agents, structured redacted logs, Langfuse model traces/evaluations, PostHog operational events and failure-isolated/no-op telemetry.
