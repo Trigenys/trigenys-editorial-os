@@ -1,7 +1,9 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
     Column,
+    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -13,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from editorial_os_api.persistence.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from editorial_os_api.persistence.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, utcnow
 
 brief_claim_links = Table(
     "brief_claim_links",
@@ -45,6 +47,35 @@ class WorkflowRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     policy_version: Mapped[str] = mapped_column(String(80), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     context: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    state_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    resume_status: Mapped[str | None] = mapped_column(String(40))
+
+
+class WorkflowAction(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "workflow_actions"
+    __table_args__ = (
+        UniqueConstraint("workflow_run_id", "action_key", name="workflow_action_idempotency"),
+    )
+
+    workflow_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    action_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    action_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    actor_kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    from_status: Mapped[str] = mapped_column(String(40), nullable=False)
+    to_status: Mapped[str] = mapped_column(String(40), nullable=False)
+    from_state_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    to_state_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        nullable=False,
+    )
 
 
 class TopicCandidate(UUIDPrimaryKeyMixin, TimestampMixin, Base):
