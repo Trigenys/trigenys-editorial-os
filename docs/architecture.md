@@ -73,6 +73,11 @@ Provider-independent Python modules define:
 ### Persistence
 PostgreSQL stores product state, audit data, idempotency keys and workflow metadata. Raw external content should be retained only when useful and legally/operationally justified.
 
+### Model gateway
+Agents call the provider-independent `ModelGateway`, never a provider SDK. A task-specific `ModelPolicy` chooses the route, the PostgreSQL `BudgetLedger` reserves run/agent spend before the call, and all structured output is validated before it can enter canonical state.
+
+LiteLLM 1.101.x is the first model adapter. Provider/model identifiers remain configuration and usage is recorded in Editorial OS PostgreSQL rather than relying on provider dashboards.
+
 ### Provider adapters
 All external systems sit behind explicit interfaces. Initial candidates:
 - RSSHub / Crawl4AI for source acquisition;
