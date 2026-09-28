@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
@@ -199,10 +200,9 @@ class BudgetLedger:
             record.completed_at = utcnow()
 
     @staticmethod
-    def _effective_spend(records: object) -> Decimal:
+    def _effective_spend(records: Iterable[ModelUsageRecord]) -> Decimal:
         total = Decimal("0")
         for record in records:
-            assert isinstance(record, ModelUsageRecord)
             if record.status == "RESERVED":
                 total += record.reserved_cost_usd
             elif record.actual_cost_usd is not None:
