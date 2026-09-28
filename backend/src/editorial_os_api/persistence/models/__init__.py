@@ -15,6 +15,7 @@ from editorial_os_api.persistence.models.source import Source, SourceItem
 from editorial_os_api.persistence.models.workflow import (
     EditorialBrief,
     TopicCandidate,
+    WorkflowAction,
     WorkflowRun,
     brief_claim_links,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "Source",
     "SourceItem",
     "TopicCandidate",
+    "WorkflowAction",
     "WorkflowRun",
     "brief_claim_links",
     "claim_evidence_links",

@@ -173,6 +173,8 @@ class WorkflowRunContract(Contract):
     confidence_class: ConfidenceClass
     policy_version: str
     idempotency_key: str
+    state_version: int = 0
+    resume_status: WorkflowStatus | None = None
     created_at: datetime
     updated_at: datetime
 

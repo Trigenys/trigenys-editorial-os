@@ -41,6 +41,7 @@ jobs:
       EDITORIAL_OS_ENVIRONMENT: test
       EDITORIAL_OS_DATABASE_URL: postgresql+psycopg://editorial_os:editorial_os@localhost:5432/editorial_os
       EDITORIAL_OS_DATABASE_ECHO: "false"
+      LANGGRAPH_STRICT_MSGPACK: "true"
 
     steps:
       - uses: actions/checkout@v7
