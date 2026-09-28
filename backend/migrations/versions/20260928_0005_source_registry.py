@@ -117,13 +117,9 @@ def upgrade() -> None:
     op.execute(
         """
         UPDATE source_items
-        SET identity_key = encode(
-            digest(
-                source_id::text || ':' ||
-                COALESCE(NULLIF(external_id, ''), canonical_url, id::text),
-                'sha256'
-            ),
-            'hex'
+        SET identity_key = md5(
+            source_id::text || ':' ||
+            COALESCE(NULLIF(external_id, ''), canonical_url, id::text)
         )
         """
     )
