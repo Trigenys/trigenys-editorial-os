@@ -109,3 +109,32 @@ class AuditActorKind(StrEnum):
     HUMAN = "HUMAN"
     AGENT = "AGENT"
     SYSTEM = "SYSTEM"
+
+
+class SourceKind(StrEnum):
+    MANUAL = "MANUAL"
+    RSS = "RSS"
+    ATOM = "ATOM"
+    RSSHUB = "RSSHUB"
+    WEB = "WEB"
+
+
+class SourceHealthStatus(StrEnum):
+    HEALTHY = "HEALTHY"
+    DEGRADED = "DEGRADED"
+    PAUSED = "PAUSED"
+
+
+class SourceFetchStatus(StrEnum):
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
+class SourceFailureKind(StrEnum):
+    TIMEOUT = "TIMEOUT"
+    HTTP_RETRYABLE = "HTTP_RETRYABLE"
+    HTTP_TERMINAL = "HTTP_TERMINAL"
+    PARSE = "PARSE"
+    EXTRACTION = "EXTRACTION"
+    CONFIGURATION = "CONFIGURATION"
+    UNKNOWN = "UNKNOWN"
