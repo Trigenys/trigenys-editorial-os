@@ -78,7 +78,7 @@ def _register(
             trust_tier=EvidenceTier.E2,
             default_evidence_tier=EvidenceTier.E2,
             locale="en",
-            vertical_keys=vertical_keys or ["technology"],
+            vertical_keys=["technology"] if vertical_keys is None else vertical_keys,
             fetch_policy=policy or FetchPolicy(interval_seconds=60),
             retention_days=7,
             redact_raw_content=redact_raw_content,
