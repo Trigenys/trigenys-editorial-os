@@ -38,7 +38,11 @@ class SourceItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     title: Mapped[str | None] = mapped_column(Text)
     content_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     raw_content: Mapped[str | None] = mapped_column(Text)
-    extracted_payload: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    extracted_payload: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        default=dict,
+        nullable=False,
+    )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     retain_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
