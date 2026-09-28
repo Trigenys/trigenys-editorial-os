@@ -168,8 +168,5 @@ class RssAtomAdapter:
 
     @staticmethod
     def _string_value(container: Any, key: str) -> str | None:
-        if isinstance(container, dict):
-            value = container.get(key)
-        else:
-            value = getattr(container, key, None)
+        value = container.get(key) if isinstance(container, dict) else getattr(container, key, None)
         return value if isinstance(value, str) and value.strip() else None
