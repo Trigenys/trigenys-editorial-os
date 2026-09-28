@@ -1,10 +1,29 @@
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from editorial_os_api.persistence.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+
+draft_claim_links = Table(
+    "draft_claim_links",
+    Base.metadata,
+    Column(
+        "draft_id",
+        Uuid(as_uuid=True),
+        ForeignKey("drafts.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "claim_id",
+        Uuid(as_uuid=True),
+        ForeignKey("claims.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("support_status", String(20), nullable=False),
+)
 
 
 class Draft(UUIDPrimaryKeyMixin, TimestampMixin, Base):
