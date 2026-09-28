@@ -141,6 +141,7 @@ class SourceRegistry:
             locale=source.locale,
             vertical_keys=list(source.vertical_keys),
             fetch_policy=FetchPolicy.model_validate(source.fetch_policy or {}),
+            retention_days=source.retention_days,
             redact_raw_content=source.redact_raw_content,
             config=dict(source.config),
             health_status=SourceHealthStatus(source.health_status),
