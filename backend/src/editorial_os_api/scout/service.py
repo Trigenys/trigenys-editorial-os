@@ -31,7 +31,11 @@ from editorial_os_api.scout.normalize import (
     identity_key,
     normalized_text,
 )
-from editorial_os_api.scout.registry import SourceRegistry
+from editorial_os_api.scout.registry import (
+    SourceRegistry,
+    apply_source_failure,
+    apply_source_success,
+)
 
 
 class ScoutAgent:
@@ -221,15 +225,12 @@ class ScoutAgent:
                     existing.retain_until = self._retain_until(source, observed_at)
                     updated_count += 1
 
-            source.health_status = SourceHealthStatus.HEALTHY.value
-            source.consecutive_failures = 0
-            source.last_success_at = observed_at
-            source.last_error_kind = None
-            source.next_fetch_at = observed_at + timedelta(
-                seconds=source_snapshot.fetch_policy.interval_seconds
+            apply_source_success(
+                source,
+                policy=source_snapshot.fetch_policy,
+                now=observed_at,
+                cursor=batch.cursor,
             )
-            if batch.cursor is not None:
-                source.cursor = batch.cursor
 
             fetch_id = fetch.id
 
@@ -287,23 +288,13 @@ class ScoutAgent:
             session.add(fetch)
             session.flush()
 
-            source.consecutive_failures += 1
-            source.last_failure_at = observed_at
-            source.last_error_kind = error.kind.value
-            should_pause = (
-                not error.retryable
-                or source.consecutive_failures >= policy.max_failures_before_pause
+            apply_source_failure(
+                source,
+                policy=policy,
+                now=observed_at,
+                error_kind=error.kind.value,
+                retryable=error.retryable,
             )
-            if should_pause:
-                source.health_status = SourceHealthStatus.PAUSED.value
-                source.next_fetch_at = None
-            else:
-                source.health_status = SourceHealthStatus.DEGRADED.value
-                backoff = min(
-                    policy.max_backoff_seconds,
-                    policy.interval_seconds * (2 ** (source.consecutive_failures - 1)),
-                )
-                source.next_fetch_at = observed_at + timedelta(seconds=backoff)
             fetch_id = fetch.id
 
         self._observability.record_product_event(
