@@ -15,7 +15,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from editorial_os_api.persistence.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
-
 draft_claim_links = Table(
     "draft_claim_links",
     Base.metadata,
