@@ -45,9 +45,12 @@ def configure_structured_logging(level: int = logging.INFO) -> None:
     root = logging.getLogger()
     root.setLevel(level)
 
+    if any(getattr(handler, "_editorial_os_json", False) for handler in root.handlers):
+        return
+
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
-    root.handlers.clear()
+    handler._editorial_os_json = True  # type: ignore[attr-defined]
     root.addHandler(handler)
 
 
