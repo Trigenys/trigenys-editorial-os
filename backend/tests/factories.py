@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
@@ -46,7 +46,7 @@ class CompleteWorkflowFixture:
 
 
 def create_complete_workflow(session: Session, *, suffix: str) -> CompleteWorkflowFixture:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     source = Source(
         name=f"Fixture Source {suffix}",
