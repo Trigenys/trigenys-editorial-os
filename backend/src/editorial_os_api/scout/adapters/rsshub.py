@@ -7,7 +7,7 @@ from editorial_os_api.scout.errors import SourceAdapterError
 class RSSHubAdapter(RssAtomAdapter):
     name = "rsshub"
 
-    def fetch(self, source: SourceSnapshot) -> RawFetchBatch:
+    def requested_url(self, source: SourceSnapshot) -> str:
         if not source.base_url:
             raise SourceAdapterError(
                 "RSSHub source requires a base_url for the RSSHub instance.",
@@ -21,6 +21,7 @@ class RSSHubAdapter(RssAtomAdapter):
                 kind=SourceFailureKind.CONFIGURATION,
                 retryable=False,
             )
+        return f"{source.base_url.rstrip('/')}/{route.lstrip('/')}"
 
-        url = f"{source.base_url.rstrip('/')}/{route.lstrip('/')}"
-        return self.fetch_url(source, url)
+    def fetch(self, source: SourceSnapshot) -> RawFetchBatch:
+        return self.fetch_url(source, self.requested_url(source))
