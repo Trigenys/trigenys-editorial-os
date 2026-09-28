@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -16,7 +16,7 @@ from editorial_os_api.domain import (
 
 
 def test_contracts_forbid_provider_specific_extra_state() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with pytest.raises(ValidationError):
         WorkflowRunContract.model_validate(
@@ -37,7 +37,7 @@ def test_contracts_forbid_provider_specific_extra_state() -> None:
 
 
 def test_gate_decision_is_bound_to_an_artifact_version() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     artifact_id = uuid4()
 
     decision = GateDecisionContract(
