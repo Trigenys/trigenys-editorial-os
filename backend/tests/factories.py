@@ -23,6 +23,7 @@ from editorial_os_api.persistence.models import (
     claim_evidence_links,
     draft_claim_links,
 )
+from editorial_os_api.scout.normalize import identity_key
 
 
 @dataclass(frozen=True)
@@ -61,14 +62,26 @@ def create_complete_workflow(session: Session, *, suffix: str) -> CompleteWorkfl
     session.add(source)
     session.flush()
 
+    external_id = f"item-{suffix}"
+    canonical_url = f"https://example.test/items/{suffix}"
     source_item = SourceItem(
         source_id=source.id,
-        external_id=f"item-{suffix}",
-        canonical_url=f"https://example.test/items/{suffix}",
+        external_id=external_id,
+        identity_key=identity_key(
+            source.id,
+            external_id=external_id,
+            canonical_url=canonical_url,
+        ),
+        canonical_url=canonical_url,
         title="Fixture signal",
         content_hash=f"sha256-{suffix}",
         raw_content="Fixture source body",
         extracted_payload={"summary": "Fixture signal"},
+        provenance={
+            "source_id": str(source.id),
+            "adapter": "legacy-fixture",
+            "observed_at": now.isoformat(),
+        },
         published_at=now,
         observed_at=now,
         retain_until=None,
