@@ -281,7 +281,10 @@ class PostgresWorkflowEngine:
             return WorkflowStatus.FAILED_TERMINAL
 
         if action_type is WorkflowActionType.FAILURE_RETRYABLE:
-            if current in TERMINAL_STATUSES or current is WorkflowStatus.FAILED_RETRYABLE:
+            if current in TERMINAL_STATUSES or current in {
+                WorkflowStatus.FAILED_RETRYABLE,
+                WorkflowStatus.BLOCKED,
+            }:
                 raise InvalidTransitionError(
                     f"Retryable failure is not legal from {current.value}."
                 )
@@ -293,7 +296,10 @@ class PostgresWorkflowEngine:
             return WorkflowStatus(run.resume_status)
 
         if action_type is WorkflowActionType.BLOCK:
-            if current in TERMINAL_STATUSES or current is WorkflowStatus.BLOCKED:
+            if current in TERMINAL_STATUSES or current in {
+                WorkflowStatus.BLOCKED,
+                WorkflowStatus.FAILED_RETRYABLE,
+            }:
                 raise InvalidTransitionError(f"Block is not legal from {current.value}.")
             return WorkflowStatus.BLOCKED
 
