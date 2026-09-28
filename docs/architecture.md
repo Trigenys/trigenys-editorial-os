@@ -78,11 +78,18 @@ Agents call the provider-independent `ModelGateway`, never a provider SDK. A tas
 
 LiteLLM 1.101.x is the first model adapter. Provider/model identifiers remain configuration and usage is recorded in Editorial OS PostgreSQL rather than relying on provider dashboards.
 
+### Observability
+Observability is derived, best-effort output. PostgreSQL remains the system of record for workflow actions, audit decisions and model usage.
+
+The shared correlation contract is `request_id + workflow_run_id + agent_id + call_key`. Langfuse receives deterministic run-correlated LLM traces/evaluations, while PostHog receives personless product/editorial events. Structured application logs carry the same correlation IDs and apply credential redaction before serialization.
+
+Telemetry sinks fail independently and may be disabled independently. A telemetry outage cannot change or roll back a canonical workflow result.
+
 ### Provider adapters
 All external systems sit behind explicit interfaces. Initial candidates:
 - RSSHub / Crawl4AI for source acquisition;
 - LiteLLM for model routing;
-- Langfuse for LLM tracing/evaluation;
+- Langfuse v4 for LLM tracing/evaluation;
 - Payload for CMS;
 - Postiz for social distribution;
 - n8n for peripheral integration workflows;
