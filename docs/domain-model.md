@@ -32,7 +32,9 @@ Provider SDK objects never cross into the domain contract.
 - `Claim` — factual/editorial statement classified by materiality, confidence and risk.
 - `claim_evidence_links` — many-to-many support graph between claims and evidence.
 - `EditorialBrief` — versioned approved/research-informed angle and instructions.
+- `brief_claim_links` — exact claims authorized into a specific brief version.
 - `Draft` — versioned locale-specific article body.
+- `draft_claim_links` — exact claim coverage/support status for a specific draft version.
 - `Asset` — versioned image/video/document manifest with provenance.
 - `GateDecision` — immutable human decision against a specific artifact version.
 - `AuditEvent` — immutable event ledger for consequential state/actions.
