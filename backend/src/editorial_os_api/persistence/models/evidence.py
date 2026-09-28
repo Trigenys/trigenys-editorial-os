@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Table, Text, Column, Uuid
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from editorial_os_api.persistence.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
