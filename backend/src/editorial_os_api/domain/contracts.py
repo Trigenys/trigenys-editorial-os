@@ -14,6 +14,9 @@ from editorial_os_api.domain.enums import (
     GateOutcome,
     PublicationStatus,
     RiskClass,
+    SourceFetchStatus,
+    SourceHealthStatus,
+    SourceKind,
     TopicDecision,
     WorkflowStatus,
 )
@@ -29,20 +32,47 @@ class Contract(BaseModel):
 class SourceContract(Contract):
     id: UUID
     name: str
-    kind: str
+    kind: SourceKind
     enabled: bool = True
+    trust_tier: EvidenceTier = EvidenceTier.E1
     default_evidence_tier: EvidenceTier = EvidenceTier.E1
+    locale: str | None = None
+    vertical_keys: list[str] = Field(default_factory=list)
+    fetch_policy: dict[str, Any] = Field(default_factory=dict)
     retention_days: int | None = None
     redact_raw_content: bool = False
+    health_status: SourceHealthStatus = SourceHealthStatus.HEALTHY
+    consecutive_failures: int = 0
+    next_fetch_at: datetime | None = None
+    cursor: str | None = None
+
+
+class SourceFetchContract(Contract):
+    id: UUID
+    source_id: UUID
+    adapter: str
+    requested_url: str
+    status: SourceFetchStatus
+    failure_kind: str | None = None
+    retryable: bool | None = None
+    started_at: datetime
+    completed_at: datetime
+    http_status: int | None = None
+    content_type: str | None = None
+    raw_sha256: str | None = None
 
 
 class SourceItemContract(Contract):
     id: UUID
     source_id: UUID
+    source_fetch_id: UUID | None = None
     external_id: str | None = None
+    identity_key: str
     canonical_url: str
     title: str | None = None
     content_hash: str
+    locale: str | None = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
     published_at: datetime | None = None
     observed_at: datetime
     retain_until: datetime | None = None
