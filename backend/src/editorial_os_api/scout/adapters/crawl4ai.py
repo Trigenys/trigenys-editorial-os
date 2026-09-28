@@ -17,7 +17,6 @@ class Crawl4AIExtractionAdapter:
         self._crawler_factory = crawler_factory or self._default_factory
 
     def extract(self, url: str, *, timeout_seconds: float) -> PageExtraction:
-        del timeout_seconds
         try:
             asyncio.get_running_loop()
         except RuntimeError:
@@ -28,7 +27,19 @@ class Crawl4AIExtractionAdapter:
                 "when an asyncio event loop is already active."
             )
 
-        return asyncio.run(self._extract_async(url))
+        try:
+            return asyncio.run(
+                asyncio.wait_for(
+                    self._extract_async(url),
+                    timeout=timeout_seconds,
+                )
+            )
+        except TimeoutError as exc:
+            raise SourceAdapterError(
+                f"Crawl4AI extraction timed out for {url}.",
+                kind=SourceFailureKind.TIMEOUT,
+                retryable=True,
+            ) from exc
 
     async def _extract_async(self, url: str) -> PageExtraction:
         crawler = self._crawler_factory()
