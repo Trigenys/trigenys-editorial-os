@@ -17,40 +17,41 @@ class ObservabilityHub:
         self._logger = logging.getLogger("editorial_os.observability")
 
     def record_model_call(self, event: ModelTelemetryEvent) -> None:
-        self._fan_out("record_model_call", event)
+        for sink in self._sinks:
+            try:
+                sink.record_model_call(event)
+            except Exception:
+                self._report_failure(sink, "record_model_call")
 
     def record_evaluation(self, event: EvaluationTelemetryEvent) -> None:
-        self._fan_out("record_evaluation", event)
+        for sink in self._sinks:
+            try:
+                sink.record_evaluation(event)
+            except Exception:
+                self._report_failure(sink, "record_evaluation")
 
     def record_product_event(self, event: ProductTelemetryEvent) -> None:
-        self._fan_out("record_product_event", event)
+        for sink in self._sinks:
+            try:
+                sink.record_product_event(event)
+            except Exception:
+                self._report_failure(sink, "record_product_event")
 
     def shutdown(self) -> None:
         for sink in self._sinks:
             try:
                 sink.shutdown()
             except Exception:
-                log_event(
-                    self._logger,
-                    "telemetry.shutdown_failed",
-                    level=logging.WARNING,
-                    properties={"sink": type(sink).__name__},
-                    exc_info=True,
-                )
+                self._report_failure(sink, "shutdown")
 
-    def _fan_out(self, method_name: str, event: object) -> None:
-        for sink in self._sinks:
-            try:
-                method = getattr(sink, method_name)
-                method(event)
-            except Exception:
-                log_event(
-                    self._logger,
-                    "telemetry.delivery_failed",
-                    level=logging.WARNING,
-                    properties={
-                        "sink": type(sink).__name__,
-                        "method": method_name,
-                    },
-                    exc_info=True,
-                )
+    def _report_failure(self, sink: TelemetrySink, method: str) -> None:
+        log_event(
+            self._logger,
+            "telemetry.delivery_failed",
+            level=logging.WARNING,
+            properties={
+                "sink": type(sink).__name__,
+                "method": method,
+            },
+            exc_info=True,
+        )
