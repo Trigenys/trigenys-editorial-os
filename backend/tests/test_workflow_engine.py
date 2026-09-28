@@ -5,7 +5,6 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from editorial_os_api.config import get_settings
 from editorial_os_api.domain.enums import (
