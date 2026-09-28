@@ -14,12 +14,15 @@ from editorial_os_api.observability import ObservabilityHub, ProductTelemetryEve
 from editorial_os_api.persistence.base import utcnow
 from editorial_os_api.persistence.models import Source, SourceFetch, SourceItem
 from editorial_os_api.scout.contracts import (
+    FetchPolicy,
     ManualUrlInput,
     NormalizedSourceItem,
+    PageExtractor,
     RawFetchBatch,
     RawSourceItem,
     ScoutIngestResult,
     SourceAdapter,
+    SourceSnapshot,
 )
 from editorial_os_api.scout.errors import SourceAdapterError
 from editorial_os_api.scout.normalize import (
@@ -116,20 +119,15 @@ class ScoutAgent:
         source_id: UUID,
         manual: ManualUrlInput,
         *,
-        extractor: object,
+        extractor: PageExtractor,
         force: bool = True,
         now: datetime | None = None,
     ) -> ScoutIngestResult:
         from editorial_os_api.scout.adapters.manual import ManualUrlAdapter
-        from editorial_os_api.scout.contracts import PageExtractor
 
-        if not hasattr(extractor, "extract") or not hasattr(extractor, "name"):
-            raise TypeError("extractor must satisfy the PageExtractor contract.")
-        typed_extractor = extractor
-        assert isinstance(typed_extractor, PageExtractor.__constraints__ if False else object)
         adapter = ManualUrlAdapter(
             str(manual.url),
-            typed_extractor,  # type: ignore[arg-type]
+            extractor,
             title=manual.title,
             locale=manual.locale,
         )
@@ -139,14 +137,11 @@ class ScoutAgent:
         self,
         *,
         source_id: UUID,
-        source_snapshot: object,
+        source_snapshot: SourceSnapshot,
         batch: RawFetchBatch,
         requested_url: str,
         observed_at: datetime,
     ) -> ScoutIngestResult:
-        from editorial_os_api.scout.contracts import SourceSnapshot
-
-        assert isinstance(source_snapshot, SourceSnapshot)
         raw_sha256 = (
             hashlib.sha256(batch.raw_payload.encode()).hexdigest()
             if batch.raw_payload is not None
@@ -155,6 +150,7 @@ class ScoutAgent:
 
         created_count = 0
         updated_count = 0
+        rejected_count = 0
         with self._session_factory.begin() as session:
             source = self._locked_source(session, source_id)
             fetch = SourceFetch(
@@ -177,13 +173,17 @@ class ScoutAgent:
             session.flush()
 
             for raw_item in batch.items:
-                normalized = self._normalize_item(
-                    source_snapshot,
-                    fetch.id,
-                    raw_item,
-                    batch,
-                    observed_at,
-                )
+                try:
+                    normalized = self._normalize_item(
+                        source_snapshot,
+                        fetch.id,
+                        raw_item,
+                        batch,
+                        observed_at,
+                    )
+                except ValueError:
+                    rejected_count += 1
+                    continue
                 existing = self._find_existing_item(session, normalized)
                 if existing is None:
                     session.add(
@@ -243,6 +243,7 @@ class ScoutAgent:
                     "fetch_id": str(fetch_id),
                     "created_count": created_count,
                     "updated_count": updated_count,
+                    "rejected_count": rejected_count,
                 },
             )
         )
@@ -252,6 +253,7 @@ class ScoutAgent:
             status="SUCCEEDED",
             created_count=created_count,
             updated_count=updated_count,
+            rejected_count=rejected_count,
         )
 
     def _record_failure(
@@ -265,7 +267,7 @@ class ScoutAgent:
     ) -> ScoutIngestResult:
         with self._session_factory.begin() as session:
             source = self._locked_source(session, source_id)
-            policy = self._registry._snapshot(source).fetch_policy
+            policy = FetchPolicy.model_validate(source.fetch_policy or {})
             fetch = SourceFetch(
                 source_id=source_id,
                 adapter=adapter_name,
@@ -327,15 +329,12 @@ class ScoutAgent:
 
     @staticmethod
     def _normalize_item(
-        source: object,
+        source: SourceSnapshot,
         fetch_id: UUID,
         raw_item: RawSourceItem,
         batch: RawFetchBatch,
         observed_at: datetime,
     ) -> NormalizedSourceItem:
-        from editorial_os_api.scout.contracts import SourceSnapshot
-
-        assert isinstance(source, SourceSnapshot)
         canonical_url = canonicalize_url(raw_item.url)
         return NormalizedSourceItem(
             source_id=source.id,
@@ -415,10 +414,7 @@ class ScoutAgent:
         return source
 
     @staticmethod
-    def _safe_requested_url(adapter: SourceAdapter, source: object) -> str:
-        from editorial_os_api.scout.contracts import SourceSnapshot
-
-        assert isinstance(source, SourceSnapshot)
+    def _safe_requested_url(adapter: SourceAdapter, source: SourceSnapshot) -> str:
         try:
             return adapter.requested_url(source)
         except Exception:
