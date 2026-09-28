@@ -101,7 +101,10 @@ class SourceRegistry:
             sources = list(
                 session.scalars(
                     select(Source)
-                    .where(Source.enabled.is_(True))
+                    .where(
+                        Source.enabled.is_(True),
+                        Source.kind.in_([kind.value for kind in SourceKind]),
+                    )
                     .order_by(Source.name, Source.id)
                 )
             )
