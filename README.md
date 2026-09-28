@@ -62,6 +62,7 @@ Read:
 - [MVP success metrics](docs/mvp-metrics.md)
 - [Architecture](docs/architecture.md)
 - [Domain model & audit ledger](docs/domain-model.md)
+- [LangGraph validation](docs/langgraph-validation.md)
 - [Architecture Decision Records](docs/adr/README.md)
 - [Roadmap](docs/roadmap.md)
 - [PERT](docs/pert.md)
@@ -77,6 +78,8 @@ Read:
 - SQLAlchemy 2.0 + psycopg 3
 - PostgreSQL
 - Alembic migrations
+- LangGraph + PostgreSQL checkpoints
+- Deterministic WorkflowEngine + Gate A/B/C
 - AppFactory Project Automation
 - AppFactory webapp blueprint marker
 
@@ -122,4 +125,4 @@ Backend-only commands are documented in [backend/README.md](backend/README.md).
 
 ## Status
 
-**Foundation / domain.** The split React + FastAPI runtime is in place. Issue #3 adds provider-agnostic domain contracts, canonical PostgreSQL persistence, claim/evidence provenance, append-only approvals/audit events and idempotent remote-side-effect ownership.
+**Orchestration foundation.** Canonical domain state is in PostgreSQL. Issue #4 adds the deterministic WorkflowEngine, append-only action ledger, stable action keys, retry/resume semantics and PostgreSQL-backed LangGraph checkpoints for the three human gates.
