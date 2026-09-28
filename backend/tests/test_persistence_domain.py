@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
@@ -57,35 +57,38 @@ def test_complete_workflow_fixture_persists_full_provenance() -> None:
         assert fixture.source.retention_days == 30
 
 
-@pytest.mark.parametrize(
-    ("model", "field", "replacement"),
-    [
-        (GateDecision, "outcome", "REJECTED"),
-        (AuditEvent, "event_type", "tampered"),
-    ],
-)
-def test_append_only_ledger_rejects_updates(
-    model: type[GateDecision] | type[AuditEvent],
-    field: str,
-    replacement: str,
-) -> None:
+def test_gate_decisions_are_append_only() -> None:
     _upgrade_schema()
     suffix = uuid4().hex
     engine = get_engine()
 
     with Session(engine) as session:
         fixture = create_complete_workflow(session, suffix=suffix)
-        entity = (
-            fixture.editorial_gate
-            if model is GateDecision
-            else fixture.audit_event
-        )
 
         with pytest.raises(DBAPIError):
             session.execute(
-                update(model)
-                .where(model.id == entity.id)
-                .values({field: replacement})
+                update(GateDecision)
+                .where(GateDecision.id == fixture.editorial_gate.id)
+                .values(outcome="REJECTED")
+            )
+            session.commit()
+
+        session.rollback()
+
+
+def test_audit_events_are_append_only() -> None:
+    _upgrade_schema()
+    suffix = uuid4().hex
+    engine = get_engine()
+
+    with Session(engine) as session:
+        fixture = create_complete_workflow(session, suffix=suffix)
+
+        with pytest.raises(DBAPIError):
+            session.execute(
+                update(AuditEvent)
+                .where(AuditEvent.id == fixture.audit_event.id)
+                .values(event_type="tampered")
             )
             session.commit()
 
