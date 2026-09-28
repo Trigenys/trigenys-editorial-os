@@ -49,6 +49,7 @@ class SourceSnapshot(ScoutModel):
     locale: str | None = None
     vertical_keys: list[str] = Field(default_factory=list)
     fetch_policy: FetchPolicy = Field(default_factory=FetchPolicy)
+    retention_days: int | None = Field(default=None, ge=1)
     redact_raw_content: bool = False
     config: dict[str, object] = Field(default_factory=dict)
     health_status: SourceHealthStatus = SourceHealthStatus.HEALTHY
@@ -117,10 +118,16 @@ class PageExtraction(ScoutModel):
 
 
 class SourceAdapter(Protocol):
+    name: str
+
+    def requested_url(self, source: SourceSnapshot) -> str: ...
+
     def fetch(self, source: SourceSnapshot) -> RawFetchBatch: ...
 
 
 class PageExtractor(Protocol):
+    name: str
+
     def extract(self, url: str, *, timeout_seconds: float) -> PageExtraction: ...
 
 
