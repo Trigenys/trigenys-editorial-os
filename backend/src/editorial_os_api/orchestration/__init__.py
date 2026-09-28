@@ -6,6 +6,7 @@ from editorial_os_api.orchestration.engine import (
     WorkflowEngine,
     WorkflowNotFoundError,
 )
+from editorial_os_api.orchestration.observed import ObservedWorkflowEngine
 from editorial_os_api.orchestration.models import (
     GateResume,
     WorkflowCommand,
@@ -17,6 +18,7 @@ __all__ = [
     "GatePolicy",
     "GateResume",
     "InvalidTransitionError",
+    "ObservedWorkflowEngine",
     "PostgresWorkflowEngine",
     "WorkflowCommand",
     "WorkflowEngine",
