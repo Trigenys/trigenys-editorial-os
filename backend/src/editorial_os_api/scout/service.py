@@ -316,6 +316,7 @@ class ScoutAgent:
             status="FAILED",
             failure_kind=error.kind.value,
             retryable=error.retryable,
+            error_message=str(error)[:500],
         )
 
     @staticmethod
