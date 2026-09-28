@@ -1,7 +1,7 @@
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
-from collections.abc import Iterator
 from uuid import UUID
 
 
