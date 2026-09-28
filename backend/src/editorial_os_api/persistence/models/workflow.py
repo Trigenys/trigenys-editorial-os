@@ -15,7 +15,12 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from editorial_os_api.persistence.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, utcnow
+from editorial_os_api.persistence.base import (
+    Base,
+    TimestampMixin,
+    UUIDPrimaryKeyMixin,
+    utcnow,
+)
 
 brief_claim_links = Table(
     "brief_claim_links",
@@ -47,7 +52,12 @@ class WorkflowRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     policy_version: Mapped[str] = mapped_column(String(80), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     context: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
-    state_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_version: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
     resume_status: Mapped[str | None] = mapped_column(String(40))
 
 
