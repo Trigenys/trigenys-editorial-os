@@ -65,6 +65,7 @@ Read:
 - [LangGraph validation](docs/langgraph-validation.md)
 - [Model gateway & budgets](docs/model-gateway.md)
 - [Observability & correlation](docs/observability.md)
+- [Source Registry & Scout](docs/source-registry-and-scout.md)
 - [Architecture Decision Records](docs/adr/README.md)
 - [Roadmap](docs/roadmap.md)
 - [PERT](docs/pert.md)
@@ -85,6 +86,7 @@ Read:
 - Provider-agnostic model gateway + LiteLLM adapter
 - PostgreSQL model usage/budget ledger
 - Langfuse/PostHog observability adapters with structured redacted logs
+- Durable Source Registry + idempotent Scout ingestion
 - AppFactory Project Automation
 - AppFactory webapp blueprint marker
 
@@ -130,4 +132,4 @@ Backend-only commands are documented in [backend/README.md](backend/README.md).
 
 ## Status
 
-**Observability foundation.** Workflow/model state remains canonical in PostgreSQL. Issue #6 adds run-level correlation across API/orchestrator/agents, structured redacted logs, Langfuse model traces/evaluations, PostHog operational events and failure-isolated/no-op telemetry.
+**Scout foundation.** Sources are registry-controlled, fetch history is separated from canonical source signals, and Issue #7 adds idempotent RSS/Atom, RSSHub and manual/Crawl4AI ingestion with provenance, health and bounded backoff.
