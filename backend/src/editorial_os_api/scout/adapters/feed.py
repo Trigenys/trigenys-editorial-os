@@ -92,7 +92,7 @@ class RssAtomAdapter:
         http_status: int | None = None,
         content_type: str | None = None,
     ) -> RawFetchBatch:
-        parsed: Any = feedparser.loads(payload)
+        parsed: Any = feedparser.parse(payload)
         entries = cast(list[Any], getattr(parsed, "entries", []))
         if getattr(parsed, "bozo", False) and not entries:
             raise SourceAdapterError(
