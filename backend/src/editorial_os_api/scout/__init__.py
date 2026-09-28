@@ -5,6 +5,8 @@ from editorial_os_api.scout.contracts import (
     NormalizedSourceItem,
     RawFetchBatch,
     RawSourceItem,
+    ScoutIngestResult,
+    SourceRegistration,
     SourceSnapshot,
 )
 from editorial_os_api.scout.errors import SourceAdapterError
@@ -17,7 +19,9 @@ __all__ = [
     "RawFetchBatch",
     "RawSourceItem",
     "ScoutAgent",
+    "ScoutIngestResult",
     "SourceAdapterError",
+    "SourceRegistration",
     "SourceRegistry",
     "SourceSnapshot",
 ]
