@@ -19,6 +19,10 @@ _SECRET_PREFIX_RE = re.compile(
     r"\b(?:sk-[A-Za-z0-9_-]{8,}|sk-lf-[A-Za-z0-9_-]{8,}|phc_[A-Za-z0-9_-]{8,})\b"
 )
 _URL_CREDENTIAL_RE = re.compile(r"(://[^:/\s]+:)[^@/\s]+(@)")
+_KEY_VALUE_SECRET_RE = re.compile(
+    r"(?i)\b(password|passwd|secret|token|api[_-]?key|authorization|credential)"
+    r"\s*[:=]\s*[^,;\s]+"
+)
 
 
 def _is_sensitive_key(key: object) -> bool:
@@ -29,7 +33,11 @@ def _is_sensitive_key(key: object) -> bool:
 def redact_text(value: str) -> str:
     value = _BEARER_RE.sub(f"Bearer {REDACTED}", value)
     value = _SECRET_PREFIX_RE.sub(REDACTED, value)
-    return _URL_CREDENTIAL_RE.sub(r"\1[REDACTED]\2", value)
+    value = _URL_CREDENTIAL_RE.sub(r"\1[REDACTED]\2", value)
+    return _KEY_VALUE_SECRET_RE.sub(
+        lambda match: f"{match.group(1)}={REDACTED}",
+        value,
+    )
 
 
 def redact(value: object) -> object:
