@@ -19,14 +19,14 @@ class CorrelationContext:
         return self.request_id
 
 
-_CONTEXT: ContextVar[CorrelationContext] = ContextVar(
+_CONTEXT: ContextVar[CorrelationContext | None] = ContextVar(
     "editorial_os_correlation",
-    default=CorrelationContext(),
+    default=None,
 )
 
 
 def current_correlation() -> CorrelationContext:
-    return _CONTEXT.get()
+    return _CONTEXT.get() or CorrelationContext()
 
 
 @contextmanager
