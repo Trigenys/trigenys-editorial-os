@@ -27,6 +27,7 @@ from editorial_os_api.domain.enums import (
     PublicationStatus,
     RiskClass,
     TopicDecision,
+    WorkflowActionType,
     WorkflowStatus,
 )
 
@@ -55,5 +56,6 @@ __all__ = [
     "TopicCandidateContract",
     "TopicDecision",
     "WorkflowRunContract",
+    "WorkflowActionType",
     "WorkflowStatus",
 ]
