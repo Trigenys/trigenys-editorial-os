@@ -101,6 +101,7 @@ class ScoutIngestResult(ScoutModel):
     status: str
     created_count: int = 0
     updated_count: int = 0
+    rejected_count: int = 0
     skipped_reason: str | None = None
     failure_kind: str | None = None
     retryable: bool | None = None
