@@ -19,18 +19,20 @@ def test_contracts_forbid_provider_specific_extra_state() -> None:
     now = datetime.now(timezone.utc)
 
     with pytest.raises(ValidationError):
-        WorkflowRunContract(
-            id=uuid4(),
-            vertical_key="fixture",
-            vertical_version="1",
-            status=WorkflowStatus.INGESTED,
-            risk_class=RiskClass.R0,
-            confidence_class=ConfidenceClass.C0,
-            policy_version="1",
-            idempotency_key="fixture-run",
-            created_at=now,
-            updated_at=now,
-            provider_sdk_object={"vendor": "should-not-cross-boundary"},
+        WorkflowRunContract.model_validate(
+            {
+                "id": uuid4(),
+                "vertical_key": "fixture",
+                "vertical_version": "1",
+                "status": WorkflowStatus.INGESTED,
+                "risk_class": RiskClass.R0,
+                "confidence_class": ConfidenceClass.C0,
+                "policy_version": "1",
+                "idempotency_key": "fixture-run",
+                "created_at": now,
+                "updated_at": now,
+                "provider_sdk_object": {"vendor": "should-not-cross-boundary"},
+            }
         )
 
 
