@@ -102,6 +102,7 @@ class DraftContract(Contract):
     title: str
     deck: str | None = None
     body: str
+    claim_ids: list[UUID] = Field(default_factory=list)
     unsupported_claim_ids: list[UUID] = Field(default_factory=list)
 
 
@@ -114,6 +115,7 @@ class AssetContract(Contract):
     alt_text: str | None = None
     caption: str | None = None
     provenance: dict[str, Any] = Field(default_factory=dict)
+    owner_key: str
 
 
 class GateDecisionContract(Contract):
