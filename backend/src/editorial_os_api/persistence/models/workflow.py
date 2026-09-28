@@ -1,10 +1,28 @@
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from editorial_os_api.persistence.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+
+brief_claim_links = Table(
+    "brief_claim_links",
+    Base.metadata,
+    Column(
+        "editorial_brief_id",
+        Uuid(as_uuid=True),
+        ForeignKey("editorial_briefs.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "claim_id",
+        Uuid(as_uuid=True),
+        ForeignKey("claims.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
 
 class WorkflowRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
