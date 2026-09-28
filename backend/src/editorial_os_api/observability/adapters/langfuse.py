@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import UUID
 
 from langfuse import Langfuse
 
@@ -62,7 +63,7 @@ class LangfuseTelemetrySink:
             if value is not None
         }
         cost_details = (
-            {"total": float(event.cost_usd)} if event.cost_usd is not None else None
+            {"total_cost": float(event.cost_usd)} if event.cost_usd is not None else None
         )
 
         kwargs: dict[str, Any] = {
@@ -98,5 +99,5 @@ class LangfuseTelemetrySink:
     def shutdown(self) -> None:
         self._client.shutdown()
 
-    def _trace_id(self, workflow_run_id: object) -> str:
+    def _trace_id(self, workflow_run_id: UUID) -> str:
         return str(self._client.create_trace_id(seed=str(workflow_run_id)))
