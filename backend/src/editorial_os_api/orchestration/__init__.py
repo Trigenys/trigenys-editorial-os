@@ -11,12 +11,14 @@ from editorial_os_api.orchestration.models import (
     WorkflowCommand,
     WorkflowResult,
 )
+from editorial_os_api.orchestration.observed import ObservedWorkflowEngine
 from editorial_os_api.orchestration.policy import GatePolicy
 
 __all__ = [
     "GatePolicy",
     "GateResume",
     "InvalidTransitionError",
+    "ObservedWorkflowEngine",
     "PostgresWorkflowEngine",
     "WorkflowCommand",
     "WorkflowEngine",

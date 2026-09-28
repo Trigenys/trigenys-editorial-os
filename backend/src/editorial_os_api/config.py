@@ -20,6 +20,14 @@ class Settings(BaseSettings):
         "postgresql+psycopg://editorial_os:editorial_os@localhost:5432/editorial_os"
     )
     database_echo: bool = False
+    langfuse_enabled: bool = False
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_base_url: str = "https://cloud.langfuse.com"
+    langfuse_capture_model_io: bool = False
+    posthog_enabled: bool = False
+    posthog_project_token: str | None = None
+    posthog_host: str = "https://us.i.posthog.com"
 
 
 @lru_cache

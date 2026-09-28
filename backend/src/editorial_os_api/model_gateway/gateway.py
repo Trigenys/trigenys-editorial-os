@@ -1,3 +1,5 @@
+from decimal import Decimal
+from time import perf_counter
 from typing import TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
@@ -10,7 +12,17 @@ from editorial_os_api.model_gateway.contracts import (
     ModelPolicy,
     ModelRequest,
     ModelRole,
+    ModelRoute,
+    RawModelResponse,
 )
+from editorial_os_api.observability import (
+    ErrorCategory,
+    ModelTelemetryEvent,
+    ObservabilityHub,
+    ProductTelemetryEvent,
+    bind_correlation,
+)
+from editorial_os_api.observability.errors import classify_exception
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -31,6 +43,7 @@ class ModelGateway:
         model_policy: ModelPolicy,
         budget_policy: BudgetPolicy,
         budget_ledger: BudgetLedger,
+        observability: ObservabilityHub | None = None,
         max_repair_attempts: int = 1,
     ) -> None:
         if max_repair_attempts < 0 or max_repair_attempts > 2:
@@ -39,6 +52,7 @@ class ModelGateway:
         self._model_policy = model_policy
         self._budget_policy = budget_policy
         self._budget_ledger = budget_ledger
+        self._observability = observability or ObservabilityHub()
         self._max_repair_attempts = max_repair_attempts
 
     def generate_structured(
@@ -79,6 +93,24 @@ class ModelGateway:
                 )
 
         assert last_error is not None
+        with bind_correlation(
+            workflow_run_id=request.workflow_run_id,
+            agent_id=request.agent_id,
+            call_key=call_key,
+        ):
+            self._observability.record_product_event(
+                ProductTelemetryEvent(
+                    event_name="model structured output rejected",
+                    workflow_run_id=request.workflow_run_id,
+                    agent_id=request.agent_id,
+                    properties={
+                        "call_key": call_key,
+                        "task": request.task.value,
+                        "error_category": ErrorCategory.VALIDATION.value,
+                        "repair_attempts": self._max_repair_attempts,
+                    },
+                )
+            )
         raise StructuredOutputError(
             "Model output remained invalid after "
             f"{self._max_repair_attempts} repair attempt(s): {last_error}"
@@ -113,41 +145,134 @@ class ModelGateway:
         if route.name != route_name:
             raise RuntimeError("Model route changed during one gateway call.")
 
-        self._budget_ledger.reserve(
-            request,
-            route,
+        with bind_correlation(
+            workflow_run_id=request.workflow_run_id,
+            agent_id=request.agent_id,
             call_key=call_key,
-            policy=self._budget_policy,
-        )
+        ):
+            try:
+                self._budget_ledger.reserve(
+                    request,
+                    route,
+                    call_key=call_key,
+                    policy=self._budget_policy,
+                )
+            except BudgetExceededError as exc:
+                self._record_model_event(
+                    request=request,
+                    route=route,
+                    call_key=call_key,
+                    status="blocked_budget",
+                    response=None,
+                    cost_usd=None,
+                    cost_is_estimated=False,
+                    latency_ms=0,
+                    error=exc,
+                )
+                raise
 
-        try:
-            response = self._client.complete(
-                request,
-                route,
-                json_schema=json_schema,
-            )
-        except Exception as exc:
-            self._budget_ledger.fail(
+            started = perf_counter()
+            try:
+                response = self._client.complete(
+                    request,
+                    route,
+                    json_schema=json_schema,
+                )
+            except Exception as exc:
+                latency_ms = max(0, round((perf_counter() - started) * 1000))
+                self._budget_ledger.fail(
+                    request.workflow_run_id,
+                    call_key=call_key,
+                    error=exc,
+                )
+                self._record_model_event(
+                    request=request,
+                    route=route,
+                    call_key=call_key,
+                    status="failed",
+                    response=None,
+                    cost_usd=route.max_call_cost_usd,
+                    cost_is_estimated=True,
+                    latency_ms=latency_ms,
+                    error=exc,
+                )
+                raise ModelGatewayError(
+                    f"Model provider call failed for route {route.name!r}."
+                ) from exc
+
+            completion = self._budget_ledger.complete(
                 request.workflow_run_id,
                 call_key=call_key,
-                error=exc,
+                response=response,
+                policy=self._budget_policy,
             )
-            raise ModelGatewayError(
-                f"Model provider call failed for route {route.name!r}."
-            ) from exc
+            if not completion.within_budget:
+                error = BudgetExceededError(
+                    "Model call completed above configured budget ceiling; "
+                    "output was withheld from the caller."
+                )
+                self._record_model_event(
+                    request=request,
+                    route=route,
+                    call_key=call_key,
+                    status="over_budget",
+                    response=response,
+                    cost_usd=completion.cost_usd,
+                    cost_is_estimated=completion.estimated,
+                    latency_ms=response.latency_ms,
+                    error=error,
+                )
+                raise error
 
-        completion = self._budget_ledger.complete(
-            request.workflow_run_id,
-            call_key=call_key,
-            response=response,
-            policy=self._budget_policy,
-        )
-        if not completion.within_budget:
-            raise BudgetExceededError(
-                "Model call completed above configured budget ceiling; "
-                "output was withheld from the caller."
+            self._record_model_event(
+                request=request,
+                route=route,
+                call_key=call_key,
+                status="completed",
+                response=response,
+                cost_usd=completion.cost_usd,
+                cost_is_estimated=completion.estimated,
+                latency_ms=response.latency_ms,
+                error=None,
             )
-        return response.content
+            return response.content
+
+    def _record_model_event(
+        self,
+        *,
+        request: ModelRequest,
+        route: ModelRoute,
+        call_key: str,
+        status: str,
+        response: RawModelResponse | None,
+        cost_usd: Decimal | None,
+        cost_is_estimated: bool,
+        latency_ms: int,
+        error: Exception | None,
+    ) -> None:
+        self._observability.record_model_call(
+            ModelTelemetryEvent(
+                workflow_run_id=request.workflow_run_id,
+                agent_id=request.agent_id,
+                task=request.task.value,
+                call_key=call_key,
+                route_name=route.name,
+                provider_model=response.model if response is not None else route.model,
+                status=status,
+                input_tokens=response.input_tokens if response is not None else None,
+                output_tokens=response.output_tokens if response is not None else None,
+                cost_usd=cost_usd,
+                latency_ms=latency_ms,
+                cost_is_estimated=cost_is_estimated,
+                error_category=classify_exception(error) if error is not None else None,
+                error_type=type(error).__name__ if error is not None else None,
+                error_message=str(error)[:500] if error is not None else None,
+                model_input=[
+                    message.model_dump(mode="json") for message in request.messages
+                ],
+                model_output=response.content if response is not None else None,
+            )
+        )
 
     @staticmethod
     def _repair_request(
