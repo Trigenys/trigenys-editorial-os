@@ -13,6 +13,51 @@ from editorial_os_api.scout.contracts import (
 )
 
 
+def apply_source_success(
+    source: Source,
+    *,
+    policy: FetchPolicy,
+    now: datetime,
+    cursor: str | None,
+) -> None:
+    source.health_status = SourceHealthStatus.HEALTHY.value
+    source.consecutive_failures = 0
+    source.last_success_at = now
+    source.last_error_kind = None
+    source.next_fetch_at = now + timedelta(seconds=policy.interval_seconds)
+    if cursor is not None:
+        source.cursor = cursor
+
+
+def apply_source_failure(
+    source: Source,
+    *,
+    policy: FetchPolicy,
+    now: datetime,
+    error_kind: str,
+    retryable: bool,
+) -> None:
+    source.consecutive_failures += 1
+    source.last_failure_at = now
+    source.last_error_kind = error_kind
+
+    should_pause = (
+        not retryable
+        or source.consecutive_failures >= policy.max_failures_before_pause
+    )
+    if should_pause:
+        source.health_status = SourceHealthStatus.PAUSED.value
+        source.next_fetch_at = None
+        return
+
+    source.health_status = SourceHealthStatus.DEGRADED.value
+    backoff = min(
+        policy.max_backoff_seconds,
+        policy.interval_seconds * (2 ** (source.consecutive_failures - 1)),
+    )
+    source.next_fetch_at = now + timedelta(seconds=backoff)
+
+
 class SourceRegistry:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
@@ -80,13 +125,12 @@ class SourceRegistry:
     ) -> None:
         with self._session_factory.begin() as session:
             source = self._locked_source(session, source_id)
-            source.health_status = SourceHealthStatus.HEALTHY.value
-            source.consecutive_failures = 0
-            source.last_success_at = now
-            source.last_error_kind = None
-            source.next_fetch_at = now + timedelta(seconds=policy.interval_seconds)
-            if cursor is not None:
-                source.cursor = cursor
+            apply_source_success(
+                source,
+                policy=policy,
+                now=now,
+                cursor=cursor,
+            )
 
     def mark_failure(
         self,
@@ -99,25 +143,13 @@ class SourceRegistry:
     ) -> None:
         with self._session_factory.begin() as session:
             source = self._locked_source(session, source_id)
-            source.consecutive_failures += 1
-            source.last_failure_at = now
-            source.last_error_kind = error_kind
-
-            should_pause = (
-                not retryable
-                or source.consecutive_failures >= policy.max_failures_before_pause
+            apply_source_failure(
+                source,
+                policy=policy,
+                now=now,
+                error_kind=error_kind,
+                retryable=retryable,
             )
-            if should_pause:
-                source.health_status = SourceHealthStatus.PAUSED.value
-                source.next_fetch_at = None
-                return
-
-            source.health_status = SourceHealthStatus.DEGRADED.value
-            backoff = min(
-                policy.max_backoff_seconds,
-                policy.interval_seconds * (2 ** (source.consecutive_failures - 1)),
-            )
-            source.next_fetch_at = now + timedelta(seconds=backoff)
 
     @staticmethod
     def _locked_source(session: Session, source_id: UUID) -> Source:
