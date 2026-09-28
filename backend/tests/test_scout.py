@@ -324,7 +324,9 @@ def test_manual_url_ingestion_uses_same_canonical_pipeline() -> None:
     )
     result = ScoutAgent(get_session_factory()).ingest_manual_url(
         source.id,
-        ManualUrlInput(url="https://example.com/manual", locale="fr"),
+        ManualUrlInput.model_validate(
+            {"url": "https://example.com/manual", "locale": "fr"}
+        ),
         extractor=FixturePageExtractor(),
     )
 
