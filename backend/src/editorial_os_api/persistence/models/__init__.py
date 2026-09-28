@@ -1,0 +1,33 @@
+"""Canonical SQLAlchemy models.
+
+Importing this module registers every table with Base.metadata for migrations/tests.
+"""
+
+from editorial_os_api.persistence.models.content import Asset, Draft
+from editorial_os_api.persistence.models.delivery import (
+    DistributionJob,
+    PerformanceSnapshot,
+    Publication,
+)
+from editorial_os_api.persistence.models.evidence import Claim, EvidenceItem, claim_evidence_links
+from editorial_os_api.persistence.models.governance import AuditEvent, GateDecision
+from editorial_os_api.persistence.models.source import Source, SourceItem
+from editorial_os_api.persistence.models.workflow import EditorialBrief, TopicCandidate, WorkflowRun
+
+__all__ = [
+    "Asset",
+    "AuditEvent",
+    "Claim",
+    "DistributionJob",
+    "Draft",
+    "EditorialBrief",
+    "EvidenceItem",
+    "GateDecision",
+    "PerformanceSnapshot",
+    "Publication",
+    "Source",
+    "SourceItem",
+    "TopicCandidate",
+    "WorkflowRun",
+    "claim_evidence_links",
+]
