@@ -216,6 +216,29 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "brief_claim_links",
+        sa.Column("editorial_brief_id", sa.Uuid(), nullable=False),
+        sa.Column("claim_id", sa.Uuid(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["editorial_brief_id"],
+            ["editorial_briefs.id"],
+            name=op.f("fk_brief_claim_links_editorial_brief_id_editorial_briefs"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["claim_id"],
+            ["claims.id"],
+            name=op.f("fk_brief_claim_links_claim_id_claims"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint(
+            "editorial_brief_id",
+            "claim_id",
+            name=op.f("pk_brief_claim_links"),
+        ),
+    )
+
+    op.create_table(
         "drafts",
         sa.Column("workflow_run_id", sa.Uuid(), nullable=False),
         sa.Column("editorial_brief_id", sa.Uuid(), nullable=False),
@@ -249,6 +272,30 @@ def upgrade() -> None:
         ),
     )
     op.create_index(op.f("ix_drafts_workflow_run_id"), "drafts", ["workflow_run_id"])
+
+    op.create_table(
+        "draft_claim_links",
+        sa.Column("draft_id", sa.Uuid(), nullable=False),
+        sa.Column("claim_id", sa.Uuid(), nullable=False),
+        sa.Column("support_status", sa.String(length=20), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["claim_id"],
+            ["claims.id"],
+            name=op.f("fk_draft_claim_links_claim_id_claims"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["draft_id"],
+            ["drafts.id"],
+            name=op.f("fk_draft_claim_links_draft_id_drafts"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint(
+            "draft_id",
+            "claim_id",
+            name=op.f("pk_draft_claim_links"),
+        ),
+    )
 
     op.create_table(
         "assets",
@@ -566,9 +613,12 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_assets_workflow_run_id"), table_name="assets")
     op.drop_table("assets")
 
+    op.drop_table("draft_claim_links")
+
     op.drop_index(op.f("ix_drafts_workflow_run_id"), table_name="drafts")
     op.drop_table("drafts")
 
+    op.drop_table("brief_claim_links")
     op.drop_table("claim_evidence_links")
 
     op.drop_index(op.f("ix_claims_workflow_run_id"), table_name="claims")
