@@ -1,3 +1,4 @@
+from decimal import Decimal
 from time import perf_counter
 from typing import TypeVar, cast
 
@@ -92,19 +93,24 @@ class ModelGateway:
                 )
 
         assert last_error is not None
-        self._observability.record_product_event(
-            ProductTelemetryEvent(
-                event_name="model structured output rejected",
-                workflow_run_id=request.workflow_run_id,
-                agent_id=request.agent_id,
-                properties={
-                    "call_key": call_key,
-                    "task": request.task.value,
-                    "error_category": ErrorCategory.VALIDATION.value,
-                    "repair_attempts": self._max_repair_attempts,
-                },
+        with bind_correlation(
+            workflow_run_id=request.workflow_run_id,
+            agent_id=request.agent_id,
+            call_key=call_key,
+        ):
+            self._observability.record_product_event(
+                ProductTelemetryEvent(
+                    event_name="model structured output rejected",
+                    workflow_run_id=request.workflow_run_id,
+                    agent_id=request.agent_id,
+                    properties={
+                        "call_key": call_key,
+                        "task": request.task.value,
+                        "error_category": ErrorCategory.VALIDATION.value,
+                        "repair_attempts": self._max_repair_attempts,
+                    },
+                )
             )
-        )
         raise StructuredOutputError(
             "Model output remained invalid after "
             f"{self._max_repair_attempts} repair attempt(s): {last_error}"
@@ -200,23 +206,35 @@ class ModelGateway:
                 response=response,
                 policy=self._budget_policy,
             )
-            status = "completed" if completion.within_budget else "over_budget"
+            if not completion.within_budget:
+                error = BudgetExceededError(
+                    "Model call completed above configured budget ceiling; "
+                    "output was withheld from the caller."
+                )
+                self._record_model_event(
+                    request=request,
+                    route=route,
+                    call_key=call_key,
+                    status="over_budget",
+                    response=response,
+                    cost_usd=completion.cost_usd,
+                    cost_is_estimated=completion.estimated,
+                    latency_ms=response.latency_ms,
+                    error=error,
+                )
+                raise error
+
             self._record_model_event(
                 request=request,
                 route=route,
                 call_key=call_key,
-                status=status,
+                status="completed",
                 response=response,
                 cost_usd=completion.cost_usd,
                 cost_is_estimated=completion.estimated,
                 latency_ms=response.latency_ms,
                 error=None,
             )
-            if not completion.within_budget:
-                raise BudgetExceededError(
-                    "Model call completed above configured budget ceiling; "
-                    "output was withheld from the caller."
-                )
             return response.content
 
     def _record_model_event(
@@ -227,14 +245,11 @@ class ModelGateway:
         call_key: str,
         status: str,
         response: RawModelResponse | None,
-        cost_usd: object,
+        cost_usd: Decimal | None,
         cost_is_estimated: bool,
         latency_ms: int,
         error: Exception | None,
     ) -> None:
-        from decimal import Decimal
-
-        normalized_cost = cost_usd if isinstance(cost_usd, Decimal) else None
         self._observability.record_model_call(
             ModelTelemetryEvent(
                 workflow_run_id=request.workflow_run_id,
@@ -246,7 +261,7 @@ class ModelGateway:
                 status=status,
                 input_tokens=response.input_tokens if response is not None else None,
                 output_tokens=response.output_tokens if response is not None else None,
-                cost_usd=normalized_cost,
+                cost_usd=cost_usd,
                 latency_ms=latency_ms,
                 cost_is_estimated=cost_is_estimated,
                 error_category=classify_exception(error) if error is not None else None,
