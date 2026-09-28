@@ -17,6 +17,15 @@ class RssAtomAdapter:
     def __init__(self, client: httpx.Client | None = None) -> None:
         self._client = client
 
+    def requested_url(self, source: SourceSnapshot) -> str:
+        if not source.base_url:
+            raise SourceAdapterError(
+                "RSS/Atom source requires base_url.",
+                kind=SourceFailureKind.CONFIGURATION,
+                retryable=False,
+            )
+        return source.base_url
+
     def fetch(self, source: SourceSnapshot) -> RawFetchBatch:
         if not source.base_url:
             raise SourceAdapterError(
@@ -113,10 +122,8 @@ class RssAtomAdapter:
         link = self._string_value(entry, "link")
         external_id = self._string_value(entry, "id") or self._string_value(entry, "guid")
         if not link:
-            link = external_id
-        if not link:
             raise SourceAdapterError(
-                "Feed entry has neither link nor stable identifier.",
+                "Feed entry has no canonical web link.",
                 kind=SourceFailureKind.PARSE,
                 retryable=False,
             )
