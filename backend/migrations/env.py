@@ -3,9 +3,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
+import editorial_os_api.persistence.models  # noqa: F401
 from editorial_os_api.config import get_settings
 from editorial_os_api.persistence import Base
-import editorial_os_api.persistence.models  # noqa: F401
 
 config = context.config
 
