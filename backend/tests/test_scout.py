@@ -4,10 +4,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Self
 
-from alembic import command
-from alembic.config import Config
 import httpx
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import func, select
 
 from editorial_os_api.domain.enums import (
