@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, status
@@ -5,6 +7,9 @@ from pydantic import BaseModel
 
 from editorial_os_api.config import get_settings
 from editorial_os_api.db import check_database
+from editorial_os_api.observability.factory import build_observability
+from editorial_os_api.observability.http import CorrelationMiddleware
+from editorial_os_api.observability.logging import configure_structured_logging
 
 
 class HealthResponse(BaseModel):
@@ -19,10 +24,23 @@ class ReadinessResponse(BaseModel):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_structured_logging()
+    observability = build_observability(settings)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            observability.shutdown()
+
     application = FastAPI(
         title=settings.app_name,
         version="0.1.0",
+        lifespan=lifespan,
     )
+    application.state.observability = observability
+    application.add_middleware(CorrelationMiddleware)
 
     @application.get("/health", response_model=HealthResponse, tags=["system"])
     def health() -> HealthResponse:
