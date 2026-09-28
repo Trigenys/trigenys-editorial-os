@@ -12,7 +12,7 @@ from editorial_os_api.persistence.models.delivery import (
 from editorial_os_api.persistence.models.evidence import Claim, EvidenceItem, claim_evidence_links
 from editorial_os_api.persistence.models.governance import AuditEvent, GateDecision
 from editorial_os_api.persistence.models.model_usage import ModelUsageRecord
-from editorial_os_api.persistence.models.source import Source, SourceItem
+from editorial_os_api.persistence.models.source import Source, SourceFetch, SourceItem
 from editorial_os_api.persistence.models.workflow import (
     EditorialBrief,
     TopicCandidate,
@@ -34,6 +34,7 @@ __all__ = [
     "PerformanceSnapshot",
     "Publication",
     "Source",
+    "SourceFetch",
     "SourceItem",
     "TopicCandidate",
     "WorkflowAction",
