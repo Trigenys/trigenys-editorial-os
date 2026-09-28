@@ -27,8 +27,8 @@ from editorial_os_api.scout import (
 from editorial_os_api.scout.adapters import (
     Crawl4AIExtractionAdapter,
     HttpPageExtractor,
-    RSSHubAdapter,
     RssAtomAdapter,
+    RSSHubAdapter,
 )
 from editorial_os_api.scout.contracts import (
     ManualUrlInput,
