@@ -23,6 +23,21 @@ class FetchPolicy(ScoutModel):
     )
 
 
+class SourceRegistration(ScoutModel):
+    name: str = Field(min_length=1, max_length=200)
+    kind: SourceKind
+    base_url: str | None = None
+    enabled: bool = True
+    trust_tier: EvidenceTier = EvidenceTier.E1
+    default_evidence_tier: EvidenceTier = EvidenceTier.E1
+    locale: str | None = Field(default=None, max_length=32)
+    vertical_keys: list[str] = Field(default_factory=list)
+    fetch_policy: FetchPolicy = Field(default_factory=FetchPolicy)
+    retention_days: int | None = Field(default=None, ge=1)
+    redact_raw_content: bool = False
+    config: dict[str, object] = Field(default_factory=dict)
+
+
 class SourceSnapshot(ScoutModel):
     id: UUID
     name: str
@@ -77,6 +92,17 @@ class NormalizedSourceItem(ScoutModel):
     provenance: dict[str, object] = Field(default_factory=dict)
     published_at: datetime | None = None
     observed_at: datetime
+
+
+class ScoutIngestResult(ScoutModel):
+    source_id: UUID
+    fetch_id: UUID | None = None
+    status: str
+    created_count: int = 0
+    updated_count: int = 0
+    skipped_reason: str | None = None
+    failure_kind: str | None = None
+    retryable: bool | None = None
 
 
 class PageExtraction(ScoutModel):
