@@ -63,6 +63,7 @@ Read:
 - [Architecture](docs/architecture.md)
 - [Domain model & audit ledger](docs/domain-model.md)
 - [LangGraph validation](docs/langgraph-validation.md)
+- [Model gateway & budgets](docs/model-gateway.md)
 - [Architecture Decision Records](docs/adr/README.md)
 - [Roadmap](docs/roadmap.md)
 - [PERT](docs/pert.md)
@@ -80,6 +81,8 @@ Read:
 - Alembic migrations
 - LangGraph + PostgreSQL checkpoints
 - Deterministic WorkflowEngine + Gate A/B/C
+- Provider-agnostic model gateway + LiteLLM adapter
+- PostgreSQL model usage/budget ledger
 - AppFactory Project Automation
 - AppFactory webapp blueprint marker
 
@@ -125,4 +128,4 @@ Backend-only commands are documented in [backend/README.md](backend/README.md).
 
 ## Status
 
-**Orchestration foundation.** Canonical domain state is in PostgreSQL. Issue #4 adds the deterministic WorkflowEngine, append-only action ledger, stable action keys, retry/resume semantics and PostgreSQL-backed LangGraph checkpoints for the three human gates.
+**Model foundation.** The deterministic workflow engine is in place. Issue #5 adds a provider-agnostic model gateway, task-specific routes, durable run/agent budgets, structured-output validation/repair and deterministic CI model doubles.
