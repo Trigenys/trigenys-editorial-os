@@ -105,6 +105,7 @@ class ScoutIngestResult(ScoutModel):
     skipped_reason: str | None = None
     failure_kind: str | None = None
     retryable: bool | None = None
+    error_message: str | None = Field(default=None, max_length=500)
 
 
 class PageExtraction(ScoutModel):
