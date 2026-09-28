@@ -1,6 +1,15 @@
 from uuid import UUID
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text, UniqueConstraint, Uuid
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
