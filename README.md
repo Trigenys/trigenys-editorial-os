@@ -61,6 +61,7 @@ Read:
 - [Risk & confidence policy](docs/risk-and-confidence.md)
 - [MVP success metrics](docs/mvp-metrics.md)
 - [Architecture](docs/architecture.md)
+- [Domain model & audit ledger](docs/domain-model.md)
 - [Architecture Decision Records](docs/adr/README.md)
 - [Roadmap](docs/roadmap.md)
 - [PERT](docs/pert.md)
@@ -121,4 +122,4 @@ Backend-only commands are documented in [backend/README.md](backend/README.md).
 
 ## Status
 
-**Foundation / runtime.** The product contract is frozen. Issue #2 introduces the split React + FastAPI runtime, PostgreSQL, migration plumbing and dual-runtime CI before the editorial domain model is added in Issue #3.
+**Foundation / domain.** The split React + FastAPI runtime is in place. Issue #3 adds provider-agnostic domain contracts, canonical PostgreSQL persistence, claim/evidence provenance, append-only approvals/audit events and idempotent remote-side-effect ownership.
