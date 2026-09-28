@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -121,8 +121,10 @@ class PostgresWorkflowEngine:
 
         with self._session_factory.begin() as session:
             run = self._locked_run(session, workflow_run_id)
-            payload = command.model_dump(mode="json")["payload"]
-            assert isinstance(payload, dict)
+            payload = cast(
+                dict[str, object],
+                command.model_dump(mode="json")["payload"],
+            )
 
             existing = self._existing_action(session, workflow_run_id, command.action_key)
             if existing is not None:
@@ -194,7 +196,7 @@ class PostgresWorkflowEngine:
                     f"Gate {gate.value} is not legal from {current.value}."
                 )
 
-            payload = {
+            payload: dict[str, object] = {
                 "gate": gate.value,
                 "outcome": resume.outcome.value,
                 "artifact_type": resume.artifact_type,
