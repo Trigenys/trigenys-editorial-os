@@ -73,6 +73,13 @@ Provider-independent Python modules define:
 ### Persistence
 PostgreSQL stores product state, audit data, idempotency keys and workflow metadata. Raw external content should be retained only when useful and legally/operationally justified.
 
+### Source acquisition
+The Source Registry owns approved source configuration, vertical eligibility, trust/evidence defaults, fetch policy, cursor and health. The deterministic Scout Agent persists each raw fetch separately from its normalized canonical `SourceItem`.
+
+RSS/Atom is the baseline feed path. RSSHub is a route adapter over the same feed boundary. Manual URLs use a replaceable `PageExtractor`, with lightweight HTTP extraction by default and Crawl4AI as an optional heavier adapter.
+
+Canonical URL normalization plus source-scoped identity/content fingerprints make repeated ingestion idempotent without erasing fetch provenance.
+
 ### Model gateway
 Agents call the provider-independent `ModelGateway`, never a provider SDK. A task-specific `ModelPolicy` chooses the route, the PostgreSQL `BudgetLedger` reserves run/agent spend before the call, and all structured output is validated before it can enter canonical state.
 
