@@ -3,8 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Self
-from uuid import UUID
-
 import httpx
 import pytest
 from alembic import command
@@ -17,9 +15,14 @@ from editorial_os_api.domain.enums import (
     SourceHealthStatus,
     SourceKind,
 )
-from editorial_os_api.persistence.models import Source, SourceFetch, SourceItem
+from editorial_os_api.persistence.models import SourceFetch, SourceItem
 from editorial_os_api.persistence.session import get_session_factory
-from editorial_os_api.scout import FetchPolicy, ScoutAgent, SourceAdapterError, SourceRegistry
+from editorial_os_api.scout import (
+    FetchPolicy,
+    ScoutAgent,
+    SourceAdapterError,
+    SourceRegistry,
+)
 from editorial_os_api.scout.adapters import (
     Crawl4AIExtractionAdapter,
     HttpPageExtractor,
