@@ -52,7 +52,7 @@ RSSHub / websites / APIs / manual URLs
 React/TypeScript/Vite. It displays queues, evidence, gates, runs, costs and performance. It never owns workflow truth.
 
 ### API and orchestration
-FastAPI exposes operator and integration APIs. LangGraph is the initial orchestration candidate because the product needs stateful, resumable graphs and human-in-the-loop checkpoints.
+FastAPI exposes operator and integration APIs. LangGraph 1.2.x is the first orchestration implementation behind the internal `WorkflowEngine` boundary. PostgreSQL-backed checkpoints provide pause/resume mechanics, while canonical status, gate decisions, action idempotency and audit remain Editorial OS domain state.
 
 ### Domain core
 Provider-independent Python modules define:
@@ -134,7 +134,15 @@ Terminal/exception states include `REJECTED`, `BLOCKED`, `FAILED_RETRYABLE` and 
 
 ## Idempotency
 
-Every side effect receives a stable idempotency key derived from the workflow run and action identity. Before a remote write the adapter inspects owned state; retries reconcile rather than duplicate.
+Every workflow mutation carries a stable `action_key`. The `workflow_actions` ledger has a unique `workflow_run_id + action_key` constraint, so duplicate event delivery reconciles to a no-op and conflicting reuse of a key fails closed.
+
+Every remote side effect also receives a stable idempotency key derived from the workflow run and action identity. Before a remote write the adapter inspects owned state; retries reconcile rather than duplicate.
+
+## Durable gate checkpoints
+
+LangGraph uses a dedicated PostgreSQL `langgraph` schema for checkpoint tables. A workflow run maps to thread `workflow:<uuid>`.
+
+Because a node containing `interrupt()` re-executes from its beginning when resumed, gate nodes perform no irreversible write before the interrupt. Gate decisions are committed only after resume through the canonical WorkflowEngine.
 
 ## Security
 
