@@ -119,6 +119,10 @@ class ManualUrlAdapter:
         self._title = title
         self._locale = locale
 
+    def requested_url(self, source: SourceSnapshot) -> str:
+        del source
+        return self._url
+
     def fetch(self, source: SourceSnapshot) -> RawFetchBatch:
         extraction = self._extractor.extract(
             self._url,
