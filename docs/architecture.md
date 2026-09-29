@@ -99,6 +99,13 @@ The model may generate prose and structured factual-assertion references, but Ed
 
 Drafts persist the exact research brief, editorial brief, vertical-pack snapshot, locale/format, structured sections, SEO metadata, citations and revision ancestry. Operator revision creates a new draft version and preserves prior provenance.
 
+### Creative assets
+The Creative Agent converts a versioned draft into a versioned `AssetManifest`. Text-only manifests are valid when the vertical pack does not require visuals, so the workflow never invents placeholder images simply to satisfy a state transition.
+
+Visual planning and asset materialization are separate provider-agnostic boundaries. The manifest preserves origin, provenance, generation metadata, source/license data, rights status, variants and a typed Gate-B approval snapshot containing exact draft/manifest/asset versions.
+
+Rights are aggregated conservatively: unresolved rights remain visible for QA/human review, while restricted rights block the workflow.
+
 ### Model gateway
 Agents call the provider-independent `ModelGateway`, never a provider SDK. A task-specific `ModelPolicy` chooses the route, the PostgreSQL `BudgetLedger` reserves run/agent spend before the call, and all structured output is validated before it can enter canonical state.
 
