@@ -85,6 +85,13 @@ The Editorial Intelligence Agent clusters normalized signals across sources, sco
 
 Only `PROPOSE` enters `CANDIDATE` and Gate A. The model gateway may enrich angle, format and urgency, but cannot change the deterministic topic decision or bypass a gate. Topic candidates retain contributing source-item pointers, score breakdowns, machine-readable reason codes and operator-edited artifact versions.
 
+### Research and verification
+After Gate A, the Research & Verification Agent builds a primary-source-first plan and a canonical claim/evidence ledger before drafting.
+
+Evidence extraction sits behind a provider-agnostic `ResearchAdapter`. Model-produced excerpts are accepted only when they can be mechanically found in the normalized source text. Source Registry metadata supplies evidence tier and primary/secondary role; deterministic policy computes claim confidence and surfaces contradictions, stale support and unsupported claims.
+
+Sensitive, contradicted or low-confidence research is persisted and routed to a blocked human-review state rather than silently progressing to `VERIFIED`. Research calls, sources, claims and evidence items are explicitly budget-bounded.
+
 ### Model gateway
 Agents call the provider-independent `ModelGateway`, never a provider SDK. A task-specific `ModelPolicy` chooses the route, the PostgreSQL `BudgetLedger` reserves run/agent spend before the call, and all structured output is validated before it can enter canonical state.
 
