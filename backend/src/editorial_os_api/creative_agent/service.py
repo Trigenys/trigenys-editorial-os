@@ -194,11 +194,26 @@ class CreativeAgent:
             session.flush()
 
             persisted_assets: list[Asset] = []
+            next_asset_versions: dict[str, int] = {}
             for spec, result in provider_results:
+                kind_value = spec.kind.value
+                if kind_value not in next_asset_versions:
+                    next_asset_versions[kind_value] = (
+                        session.scalar(
+                            select(func.max(Asset.version)).where(
+                                Asset.workflow_run_id == workflow_run_id,
+                                Asset.kind == kind_value,
+                            )
+                        )
+                        or 0
+                    ) + 1
+                asset_version = next_asset_versions[kind_value]
+                next_asset_versions[kind_value] = asset_version + 1
+
                 asset = Asset(
                     workflow_run_id=workflow_run_id,
                     manifest_id=manifest.id,
-                    version=manifest.version,
+                    version=asset_version,
                     slot=spec.slot,
                     kind=spec.kind.value,
                     origin=result.origin.value,
