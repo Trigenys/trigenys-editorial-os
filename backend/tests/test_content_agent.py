@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -18,6 +19,7 @@ from editorial_os_api.content_agent import (
     DraftFactualAssertion,
     DraftSectionOutput,
     InternalLinkSuggestion,
+    ModelContentAdapter,
     SeoMetadataOutput,
     VerticalPackMismatchError,
 )
@@ -27,6 +29,15 @@ from editorial_os_api.domain.enums import (
     RiskClass,
     WorkflowStatus,
 )
+from editorial_os_api.model_gateway import (
+    BudgetLedger,
+    BudgetPolicy,
+    ModelGateway,
+    ModelPolicy,
+    ModelRoute,
+    ModelTask,
+)
+from editorial_os_api.model_gateway.fake import DeterministicFakeModel
 from editorial_os_api.persistence.models import (
     Claim,
     Draft,
@@ -563,3 +574,56 @@ def test_unsupported_material_claim_in_research_cannot_feed_content_agent() -> N
             adapter=FixtureContentAdapter(),
             vertical_pack=pack,
         )
+
+
+def test_model_content_adapter_is_grounded_in_verified_claim_context() -> None:
+    pack = generic_demo_pack()
+    run_id = _create_verified_run(pack)
+    fake = DeterministicFakeModel(
+        [
+            (
+                '{"headline":"Cloud service launch explained",'
+                '"deck":"A sourced explanation for technical teams.",'
+                '"sections":[{"heading":"What changed",'
+                '"body":"The cloud platform launched the service on 29 September 2026.",'
+                '"factual_assertions":[{"statement":"The cloud platform launched the '
+                'service on 29 September 2026.","claim_key":"service-launch"}]}],'
+                '"seo":{"title":"Cloud service launch",'
+                '"description":"A sourced explanation of the cloud service launch.",'
+                '"keywords":["cloud","service"],"slug":"cloud-service-launch"},'
+                '"internal_links":[]}'
+            )
+        ],
+        cost_usd=Decimal("0.001"),
+    )
+    gateway = ModelGateway(
+        fake,
+        model_policy=ModelPolicy(
+            routes={
+                ModelTask.CONTENT_DRAFTING: ModelRoute(
+                    name="fixture-content",
+                    model="fixture/model",
+                    max_call_cost_usd=Decimal("0.05"),
+                )
+            }
+        ),
+        budget_policy=BudgetPolicy(
+            per_run_usd=Decimal("1.00"),
+            default_per_agent_usd=Decimal("0.50"),
+        ),
+        budget_ledger=BudgetLedger(get_session_factory()),
+    )
+
+    result = ContentAgent(get_session_factory()).generate(
+        run_id,
+        adapter=ModelContentAdapter(gateway),
+        vertical_pack=pack,
+    )
+
+    assert result.unsupported_factual_claims == []
+    assert len(fake.calls) == 1
+    request = fake.calls[0][0]
+    user_message = request.messages[-1].content
+    assert "service-launch" in user_message
+    assert "The cloud platform launched the service on 29 September 2026." in user_message
+    assert "verified_claims" in user_message
