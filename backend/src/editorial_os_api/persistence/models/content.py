@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Column,
@@ -37,7 +37,18 @@ draft_claim_links = Table(
 class Draft(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "drafts"
     __table_args__ = (
-        UniqueConstraint("workflow_run_id", "locale", "version", name="workflow_draft_version"),
+        UniqueConstraint(
+            "workflow_run_id",
+            "locale",
+            "version",
+            name="workflow_draft_version",
+        ),
+        UniqueConstraint(
+            "workflow_run_id",
+            "locale",
+            "input_fingerprint",
+            name="workflow_draft_input_fingerprint",
+        ),
     )
 
     workflow_run_id: Mapped[UUID] = mapped_column(
@@ -49,18 +60,89 @@ class Draft(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("editorial_briefs.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    research_brief_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("research_briefs.id", ondelete="RESTRICT"),
+        index=True,
+    )
+    revision_of_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("drafts.id", ondelete="SET NULL"),
+        index=True,
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     locale: Mapped[str] = mapped_column(String(20), nullable=False)
+    content_format: Mapped[str] = mapped_column(
+        String(80),
+        default="article",
+        server_default="article",
+        nullable=False,
+    )
+    vertical_pack_key: Mapped[str] = mapped_column(
+        String(120),
+        default="legacy",
+        server_default="legacy",
+        nullable=False,
+    )
+    vertical_pack_version: Mapped[str] = mapped_column(
+        String(80),
+        default="legacy",
+        server_default="legacy",
+        nullable=False,
+    )
+    input_fingerprint: Mapped[str] = mapped_column(
+        String(128),
+        default=lambda: f"legacy:{uuid4()}",
+        nullable=False,
+    )
     title: Mapped[str] = mapped_column(Text, nullable=False)
     deck: Mapped[str | None] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata_payload: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    sections: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB,
+        default=list,
+        nullable=False,
+    )
+    seo_metadata: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        default=dict,
+        nullable=False,
+    )
+    citations: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB,
+        default=list,
+        nullable=False,
+    )
+    internal_link_suggestions: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB,
+        default=list,
+        nullable=False,
+    )
+    unsupported_factual_claims: Mapped[list[str]] = mapped_column(
+        JSONB,
+        default=list,
+        nullable=False,
+    )
+    vertical_pack_snapshot: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        default=dict,
+        nullable=False,
+    )
+    revision_feedback: Mapped[str | None] = mapped_column(Text)
+    metadata_payload: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        default=dict,
+        nullable=False,
+    )
 
 
 class Asset(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "assets"
     __table_args__ = (
-        UniqueConstraint("workflow_run_id", "version", "kind", name="workflow_asset_version_kind"),
+        UniqueConstraint(
+            "workflow_run_id",
+            "version",
+            "kind",
+            name="workflow_asset_version_kind",
+        ),
     )
 
     workflow_run_id: Mapped[UUID] = mapped_column(
@@ -73,5 +155,9 @@ class Asset(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     uri: Mapped[str | None] = mapped_column(Text)
     alt_text: Mapped[str | None] = mapped_column(Text)
     caption: Mapped[str | None] = mapped_column(Text)
-    provenance: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    provenance: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        default=dict,
+        nullable=False,
+    )
     owner_key: Mapped[str] = mapped_column(String(255), nullable=False)
