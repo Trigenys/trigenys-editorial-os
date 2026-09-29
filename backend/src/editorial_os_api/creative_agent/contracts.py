@@ -80,6 +80,35 @@ class ProviderAsset(CreativeModel):
     provenance: dict[str, object] = Field(default_factory=dict)
 
 
+class ApprovalDraftRef(CreativeModel):
+    id: UUID
+    version: int
+
+
+class ApprovalManifestRef(CreativeModel):
+    id: UUID
+    version: int
+    status: AssetManifestStatus
+    rights_status: AssetRightsStatus
+    text_only: bool
+
+
+class ApprovalAssetRef(CreativeModel):
+    id: UUID
+    version: int
+    slot: str
+    kind: AssetKind
+    origin: AssetOrigin
+    rights_status: AssetRightsStatus
+    filename: str | None = None
+
+
+class GateBApprovalSnapshot(CreativeModel):
+    draft: ApprovalDraftRef
+    asset_manifest: ApprovalManifestRef
+    assets: list[ApprovalAssetRef] = Field(default_factory=list)
+
+
 class CreativeAgentResult(CreativeModel):
     workflow_run_id: UUID
     draft_id: UUID
@@ -90,7 +119,7 @@ class CreativeAgentResult(CreativeModel):
     text_only: bool
     rights_status: AssetRightsStatus
     asset_ids: list[UUID]
-    approval_snapshot: dict[str, object]
+    approval_snapshot: GateBApprovalSnapshot
     workflow_status: str
 
 
