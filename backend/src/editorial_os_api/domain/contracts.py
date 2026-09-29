@@ -168,11 +168,21 @@ class DraftContract(Contract):
     id: UUID
     workflow_run_id: UUID
     editorial_brief_id: UUID
+    research_brief_id: UUID | None = None
+    revision_of_id: UUID | None = None
     version: int
     locale: str
+    content_format: str = "article"
+    vertical_pack_key: str = "legacy"
+    vertical_pack_version: str = "legacy"
     title: str
     deck: str | None = None
     body: str
+    sections: list[dict[str, Any]] = Field(default_factory=list)
+    seo_metadata: dict[str, Any] = Field(default_factory=dict)
+    citations: list[dict[str, Any]] = Field(default_factory=list)
+    internal_link_suggestions: list[dict[str, Any]] = Field(default_factory=list)
+    unsupported_factual_claims: list[str] = Field(default_factory=list)
     claim_ids: list[UUID] = Field(default_factory=list)
     unsupported_claim_ids: list[UUID] = Field(default_factory=list)
 
