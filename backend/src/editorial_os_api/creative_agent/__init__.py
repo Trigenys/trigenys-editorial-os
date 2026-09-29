@@ -1,8 +1,12 @@
 from editorial_os_api.creative_agent.contracts import (
+    ApprovalAssetRef,
+    ApprovalDraftRef,
+    ApprovalManifestRef,
     AssetProvider,
     AssetVariantSpec,
     CreativeAgentResult,
     CreativePlanner,
+    GateBApprovalSnapshot,
     ProviderAsset,
     VisualAssetSpec,
     VisualBrief,
@@ -16,6 +20,9 @@ from editorial_os_api.creative_agent.service import (
 )
 
 __all__ = [
+    "ApprovalAssetRef",
+    "ApprovalDraftRef",
+    "ApprovalManifestRef",
     "AssetPolicyError",
     "AssetProvider",
     "AssetVariantSpec",
@@ -23,6 +30,7 @@ __all__ = [
     "CreativeAgentError",
     "CreativeAgentResult",
     "CreativePlanner",
+    "GateBApprovalSnapshot",
     "ModelCreativePlanner",
     "ProviderAsset",
     "VisualAssetSpec",
