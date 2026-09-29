@@ -92,6 +92,13 @@ Evidence extraction sits behind a provider-agnostic `ResearchAdapter`. Model-pro
 
 Sensitive, contradicted or low-confidence research is persisted and routed to a blocked human-review state rather than silently progressing to `VERIFIED`. Research calls, sources, claims and evidence items are explicitly budget-bounded.
 
+### Content generation and vertical packs
+The Content Agent reads only verified/human-reviewed research and the canonical claim/evidence ledger. A versioned `VerticalPack` supplies audience, locale, format, voice, prohibited patterns, source rules and SEO behavior.
+
+The model may generate prose and structured factual-assertion references, but Editorial OS resolves claim keys against the ledger and constructs citations itself. Unknown factual assertions are persisted as unsupported rather than silently promoted.
+
+Drafts persist the exact research brief, editorial brief, vertical-pack snapshot, locale/format, structured sections, SEO metadata, citations and revision ancestry. Operator revision creates a new draft version and preserves prior provenance.
+
 ### Model gateway
 Agents call the provider-independent `ModelGateway`, never a provider SDK. A task-specific `ModelPolicy` chooses the route, the PostgreSQL `BudgetLedger` reserves run/agent spend before the call, and all structured output is validated before it can enter canonical state.
 
