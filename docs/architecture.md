@@ -80,6 +80,11 @@ RSS/Atom is the baseline feed path. RSSHub is a route adapter over the same feed
 
 Canonical URL normalization plus source-scoped identity/content fingerprints make repeated ingestion idempotent without erasing fetch provenance.
 
+### Editorial intelligence
+The Editorial Intelligence Agent clusters normalized signals across sources, scores novelty/relevance/source diversity, and deterministically chooses `IGNORE | WATCH | PROPOSE` from a versioned vertical policy.
+
+Only `PROPOSE` enters `CANDIDATE` and Gate A. The model gateway may enrich angle, format and urgency, but cannot change the deterministic topic decision or bypass a gate. Topic candidates retain contributing source-item pointers, score breakdowns, machine-readable reason codes and operator-edited artifact versions.
+
 ### Model gateway
 Agents call the provider-independent `ModelGateway`, never a provider SDK. A task-specific `ModelPolicy` chooses the route, the PostgreSQL `BudgetLedger` reserves run/agent spend before the call, and all structured output is validated before it can enter canonical state.
 
