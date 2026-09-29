@@ -343,9 +343,10 @@ def test_generated_and_external_assets_are_distinguishable_with_provenance() -> 
 
         snapshot_assets = result.approval_snapshot.assets
         assert len(snapshot_assets) == 2
+        assert [item.version for item in snapshot_assets] == [1, 2]
         assert {
-            item.version for item in snapshot_assets
-        } == {result.manifest_version}
+            item.id for item in snapshot_assets
+        } == set(result.asset_ids)
         assert result.approval_snapshot.asset_manifest.version == (
             result.manifest_version
         )
