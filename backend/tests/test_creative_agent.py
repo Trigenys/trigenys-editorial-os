@@ -276,8 +276,8 @@ def test_text_only_article_reaches_assets_ready_without_provider() -> None:
     assert result.rights_status is AssetRightsStatus.CLEAR
     assert result.asset_ids == []
     assert result.workflow_status == WorkflowStatus.ASSETS_READY.value
-    assert result.approval_snapshot["assets"] == []
-    assert result.approval_snapshot["draft"]["version"] == 1
+    assert result.approval_snapshot.assets == []
+    assert result.approval_snapshot.draft.version == 1
 
     with get_session_factory()() as session:
         manifest = session.get(AssetManifest, result.manifest_id)
@@ -341,12 +341,12 @@ def test_generated_and_external_assets_are_distinguishable_with_provenance() -> 
         assert reference.license_name == "Fixture Editorial License"
         assert reference.rights_status == AssetRightsStatus.CLEAR.value
 
-        snapshot_assets = result.approval_snapshot["assets"]
+        snapshot_assets = result.approval_snapshot.assets
         assert len(snapshot_assets) == 2
         assert {
-            item["version"] for item in snapshot_assets
+            item.version for item in snapshot_assets
         } == {result.manifest_version}
-        assert result.approval_snapshot["asset_manifest"]["version"] == (
+        assert result.approval_snapshot.asset_manifest.version == (
             result.manifest_version
         )
 
@@ -393,8 +393,8 @@ def test_review_required_rights_remain_visible_but_can_reach_assets_ready() -> N
     assert result.rights_status is AssetRightsStatus.REVIEW_REQUIRED
     assert result.workflow_status == WorkflowStatus.ASSETS_READY.value
     assert (
-        result.approval_snapshot["asset_manifest"]["rights_status"]
-        == AssetRightsStatus.REVIEW_REQUIRED.value
+        result.approval_snapshot.asset_manifest.rights_status
+        is AssetRightsStatus.REVIEW_REQUIRED
     )
 
 
