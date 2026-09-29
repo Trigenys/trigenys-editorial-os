@@ -558,7 +558,10 @@ class ResearchVerificationAgent:
 
     def _handoff(self, brief: ResearchBrief) -> None:
         status = ResearchBriefStatus(brief.status)
-        if status in {ResearchBriefStatus.VERIFIED, ResearchBriefStatus.REVIEWED}:
+        if status is ResearchBriefStatus.REVIEWED:
+            return
+
+        if status is ResearchBriefStatus.VERIFIED:
             self._workflow_engine.apply(
                 brief.workflow_run_id,
                 WorkflowCommand(
