@@ -28,9 +28,10 @@ Provider SDK objects never cross into the domain contract.
 - `SourceItem` — normalized fetched source item with deduplication fingerprint and redaction/retention state.
 - `WorkflowRun` — one canonical editorial run and its current lifecycle classification.
 - `TopicCandidate` — versioned editorial proposal produced from one or more clustered signals, with source pointers, deterministic scores, decision reasons, format and urgency.
-- `EvidenceItem` — evidence with provenance, freshness and retention metadata.
-- `Claim` — factual/editorial statement classified by materiality, confidence and risk.
-- `claim_evidence_links` — many-to-many support graph between claims and evidence.
+- `EvidenceItem` — extracted evidence with provenance, tier, primary/secondary role, freshness and retention metadata.
+- `Claim` — canonical factual/editorial statement with stable key, support status, confidence reasons, risk and stale/contested flags.
+- `claim_evidence_links` — many-to-many graph between claims and evidence with explicit SUPPORTS/REFUTES/CONTEXT stance.
+- `ResearchBrief` — versioned research outcome containing confidence/risk, claim/evidence pointers, contradictions, unsupported/stale claims, source plan, budget usage and review state.
 - `EditorialBrief` — versioned approved/research-informed angle and instructions.
 - `brief_claim_links` — exact claims authorized into a specific brief version.
 - `Draft` — versioned locale-specific article body.
@@ -53,6 +54,7 @@ The database stores the graph; policy determines whether the graph is sufficient
 Mutable editorial artifacts are versioned rather than silently overwritten where approval history matters:
 
 - topic candidate: `workflow_run_id + cluster_key` identity, explicit `version` for operator edits before Gate A;
+- research brief: `workflow_run_id + input_fingerprint` idempotency and explicit version;
 - editorial brief: `workflow_run_id + version`;
 - draft: `workflow_run_id + locale + version`;
 - asset: `workflow_run_id + kind + version`.
