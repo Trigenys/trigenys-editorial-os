@@ -68,6 +68,13 @@ class TopicDecision(StrEnum):
     PROPOSE = "PROPOSE"
 
 
+class TopicUrgency(StrEnum):
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+    BREAKING = "BREAKING"
+
+
 class GateKind(StrEnum):
     TOPIC = "A"
     EDITORIAL = "B"
