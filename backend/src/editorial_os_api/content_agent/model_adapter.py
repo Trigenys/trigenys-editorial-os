@@ -4,7 +4,6 @@ import json
 from uuid import UUID
 
 from editorial_os_api.content_agent.contracts import (
-    ContentAdapter,
     ContentClaimContext,
     ContentDraftOutput,
 )
@@ -18,7 +17,7 @@ from editorial_os_api.model_gateway import (
 from editorial_os_api.vertical_packs import VerticalPack
 
 
-class ModelContentAdapter(ContentAdapter):
+class ModelContentAdapter:
     name = "model-gateway"
 
     def __init__(self, gateway: ModelGateway) -> None:
