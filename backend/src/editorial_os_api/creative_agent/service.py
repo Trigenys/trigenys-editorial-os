@@ -11,6 +11,7 @@ from editorial_os_api.creative_agent.contracts import (
     AssetProvider,
     CreativeAgentResult,
     CreativePlanner,
+    GateBApprovalSnapshot,
     ProviderAsset,
     VisualAssetSpec,
     VisualBrief,
@@ -292,14 +293,16 @@ class CreativeAgent:
             assert persisted is not None
             return self._result(persisted)
 
-    def approval_snapshot(self, manifest_id: UUID) -> dict[str, object]:
+    def approval_snapshot(self, manifest_id: UUID) -> GateBApprovalSnapshot:
         with self._session_factory() as session:
             manifest = session.get(AssetManifest, manifest_id)
             if manifest is None:
                 raise CreativeAgentError(
                     f"Unknown asset manifest: {manifest_id}"
                 )
-            return dict(manifest.approval_snapshot)
+            return GateBApprovalSnapshot.model_validate(
+                manifest.approval_snapshot
+            )
 
     @staticmethod
     def _load_pack(draft: Draft) -> VerticalPack:
@@ -568,6 +571,8 @@ class CreativeAgent:
             text_only=manifest.text_only,
             rights_status=AssetRightsStatus(manifest.rights_status),
             asset_ids=[UUID(value) for value in manifest.asset_ids],
-            approval_snapshot=dict(manifest.approval_snapshot),
+            approval_snapshot=GateBApprovalSnapshot.model_validate(
+                manifest.approval_snapshot
+            ),
             workflow_status=workflow_status,
         )
