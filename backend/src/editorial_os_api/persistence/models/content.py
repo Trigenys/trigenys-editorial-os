@@ -198,6 +198,12 @@ class Asset(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "assets"
     __table_args__ = (
         UniqueConstraint(
+            "workflow_run_id",
+            "version",
+            "kind",
+            name="workflow_asset_version_kind",
+        ),
+        UniqueConstraint(
             "manifest_id",
             "slot",
             "version",
