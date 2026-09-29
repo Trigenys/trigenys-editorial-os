@@ -83,9 +83,11 @@ class EvidenceAssessment(ResearchModel):
 
     @model_validator(mode="after")
     def usable_evidence_requires_excerpt(self) -> EvidenceAssessment:
-        if self.stance is not EvidenceStance.NO_EVIDENCE:
-            if self.excerpt is None or not self.excerpt.strip():
-                raise ValueError("Non-empty excerpt required for usable evidence.")
+        if (
+            self.stance is not EvidenceStance.NO_EVIDENCE
+            and (self.excerpt is None or not self.excerpt.strip())
+        ):
+            raise ValueError("Non-empty excerpt required for usable evidence.")
         return self
 
 
