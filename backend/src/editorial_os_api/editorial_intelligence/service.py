@@ -235,7 +235,10 @@ class EditorialIntelligenceAgent:
             session.flush()
             candidate_id = candidate.id
 
-        pending_gate = self._handoff_if_proposed(candidate)
+        with self._session_factory() as session:
+            persisted_for_handoff = session.get(TopicCandidate, candidate_id)
+            assert persisted_for_handoff is not None
+            pending_gate = self._handoff_if_proposed(persisted_for_handoff)
 
         self._observability.record_product_event(
             ProductTelemetryEvent(
