@@ -90,18 +90,74 @@ class WorkflowAction(UUIDPrimaryKeyMixin, Base):
 
 class TopicCandidate(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "topic_candidates"
+    __table_args__ = (
+        UniqueConstraint(
+            "workflow_run_id",
+            "cluster_key",
+            name="workflow_topic_cluster",
+        ),
+    )
 
     workflow_run_id: Mapped[UUID] = mapped_column(
         ForeignKey("workflow_runs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
+    version: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        server_default="1",
+        nullable=False,
+    )
+    cluster_key: Mapped[str] = mapped_column(String(128), nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     proposed_angle: Mapped[str] = mapped_column(Text, nullable=False)
+    proposed_format: Mapped[str] = mapped_column(
+        String(80),
+        default="article",
+        server_default="article",
+        nullable=False,
+    )
+    urgency: Mapped[str] = mapped_column(
+        String(20),
+        default="NORMAL",
+        server_default="NORMAL",
+        nullable=False,
+    )
     decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    novelty_score: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
+    relevance_score: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
+    source_diversity_score: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
+    composite_score: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
     risk_class: Mapped[str] = mapped_column(String(2), nullable=False)
     confidence_class: Mapped[str] = mapped_column(String(2), nullable=False)
     reason_codes: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    source_item_ids: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    reason_details: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        default=dict,
+        nullable=False,
+    )
 
 
 class EditorialBrief(UUIDPrimaryKeyMixin, TimestampMixin, Base):
