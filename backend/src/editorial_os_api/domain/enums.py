@@ -9,6 +9,33 @@ class EvidenceTier(StrEnum):
     E4 = "E4"
 
 
+class EvidenceStance(StrEnum):
+    SUPPORTS = "SUPPORTS"
+    REFUTES = "REFUTES"
+    CONTEXT = "CONTEXT"
+    NO_EVIDENCE = "NO_EVIDENCE"
+
+
+class SourceRole(StrEnum):
+    PRIMARY = "PRIMARY"
+    SECONDARY = "SECONDARY"
+
+
+class ClaimSupportStatus(StrEnum):
+    SUPPORTED = "SUPPORTED"
+    UNSUPPORTED = "UNSUPPORTED"
+    CONTESTED = "CONTESTED"
+    STALE = "STALE"
+    UNKNOWN = "UNKNOWN"
+
+
+class ResearchBriefStatus(StrEnum):
+    VERIFIED = "VERIFIED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    INSUFFICIENT = "INSUFFICIENT"
+    REVIEWED = "REVIEWED"
+
+
 class ConfidenceClass(StrEnum):
     C0 = "C0"
     C1 = "C1"
