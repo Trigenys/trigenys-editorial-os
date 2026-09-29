@@ -152,7 +152,8 @@ class EditorialIntelligenceAgent:
                 )
             )
             if existing is not None:
-                return self._result(existing)
+                pending_gate = self._handoff_if_proposed(existing)
+                return self._result(existing, pending_gate=pending_gate)
 
         score = score_cluster(
             selected,
@@ -170,7 +171,11 @@ class EditorialIntelligenceAgent:
         if len(clusters) > 1:
             reason_codes.append("MULTIPLE_CLUSTERS_INPUT_REDUCED")
 
-        if self._model_gateway is not None and policy.use_model_strategy:
+        if (
+            decision is TopicDecision.PROPOSE
+            and self._model_gateway is not None
+            and policy.use_model_strategy
+        ):
             try:
                 strategy = self._model_strategy(
                     workflow_run_id,
@@ -230,25 +235,7 @@ class EditorialIntelligenceAgent:
             session.flush()
             candidate_id = candidate.id
 
-        pending_gate: str | None = None
-        if decision is TopicDecision.PROPOSE:
-            transition = self._workflow_engine.apply(
-                workflow_run_id,
-                WorkflowCommand(
-                    action_key=f"topic-proposed:{candidate_id}:v1",
-                    action_type=WorkflowActionType.TOPIC_PROPOSED,
-                    actor_kind=AuditActorKind.AGENT,
-                    actor_id=self.agent_id,
-                    payload={
-                        "candidate_id": str(candidate_id),
-                        "candidate_version": 1,
-                        "cluster_key": selected_key,
-                        "decision": decision.value,
-                        "composite_score": score.composite,
-                    },
-                ),
-            )
-            pending_gate = transition.pending_gate
+        pending_gate = self._handoff_if_proposed(candidate)
 
         self._observability.record_product_event(
             ProductTelemetryEvent(
@@ -418,8 +405,9 @@ class EditorialIntelligenceAgent:
         now: datetime,
     ) -> list[tuple[str, str]]:
         cutoff = now - timedelta(hours=policy.thresholds.novelty_window_hours)
-        return list(
-            session.execute(
+        return [
+            (cluster_key_value, title)
+            for cluster_key_value, title in session.execute(
                 select(TopicCandidate.cluster_key, TopicCandidate.title)
                 .join(WorkflowRun, WorkflowRun.id == TopicCandidate.workflow_run_id)
                 .where(
@@ -428,7 +416,28 @@ class EditorialIntelligenceAgent:
                     TopicCandidate.created_at >= cutoff,
                 )
             )
+        ]
+
+    def _handoff_if_proposed(self, candidate: TopicCandidate) -> str | None:
+        if TopicDecision(candidate.decision) is not TopicDecision.PROPOSE:
+            return None
+        transition = self._workflow_engine.apply(
+            candidate.workflow_run_id,
+            WorkflowCommand(
+                action_key=f"topic-proposed:{candidate.id}:v1",
+                action_type=WorkflowActionType.TOPIC_PROPOSED,
+                actor_kind=AuditActorKind.AGENT,
+                actor_id=self.agent_id,
+                payload={
+                    "candidate_id": str(candidate.id),
+                    "candidate_version": 1,
+                    "cluster_key": candidate.cluster_key,
+                    "decision": candidate.decision,
+                    "composite_score": candidate.composite_score,
+                },
+            ),
         )
+        return transition.pending_gate
 
     def _model_strategy(
         self,
