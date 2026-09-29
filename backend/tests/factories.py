@@ -102,12 +102,14 @@ def create_complete_workflow(session: Session, *, suffix: str) -> CompleteWorkfl
 
     topic = TopicCandidate(
         workflow_run_id=workflow.id,
+        cluster_key=f"fixture-topic-{suffix}",
         title="Fixture topic",
         proposed_angle="Fixture angle",
         decision="PROPOSE",
         risk_class="R0",
         confidence_class="C4",
         reason_codes=["fixture"],
+        source_item_ids=[str(source_item.id)],
     )
     evidence = EvidenceItem(
         workflow_run_id=workflow.id,
