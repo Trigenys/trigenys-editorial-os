@@ -93,11 +93,6 @@ def upgrade() -> None:
         ["draft_id"],
     )
 
-    op.drop_constraint(
-        "workflow_asset_version_kind",
-        "assets",
-        type_="unique",
-    )
     op.add_column("assets", sa.Column("manifest_id", sa.Uuid()))
     op.add_column("assets", sa.Column("slot", sa.String(length=120)))
     op.add_column(
@@ -210,12 +205,6 @@ def downgrade() -> None:
     op.drop_column("assets", "origin")
     op.drop_column("assets", "slot")
     op.drop_column("assets", "manifest_id")
-    op.create_unique_constraint(
-        "workflow_asset_version_kind",
-        "assets",
-        ["workflow_run_id", "version", "kind"],
-    )
-
     op.drop_index(
         op.f("ix_asset_manifests_draft_id"),
         table_name="asset_manifests",
