@@ -9,7 +9,12 @@ from editorial_os_api.persistence.models.delivery import (
     PerformanceSnapshot,
     Publication,
 )
-from editorial_os_api.persistence.models.evidence import Claim, EvidenceItem, claim_evidence_links
+from editorial_os_api.persistence.models.evidence import (
+    Claim,
+    EvidenceItem,
+    ResearchBrief,
+    claim_evidence_links,
+)
 from editorial_os_api.persistence.models.governance import AuditEvent, GateDecision
 from editorial_os_api.persistence.models.model_usage import ModelUsageRecord
 from editorial_os_api.persistence.models.source import Source, SourceFetch, SourceItem
@@ -33,6 +38,7 @@ __all__ = [
     "ModelUsageRecord",
     "PerformanceSnapshot",
     "Publication",
+    "ResearchBrief",
     "Source",
     "SourceFetch",
     "SourceItem",
