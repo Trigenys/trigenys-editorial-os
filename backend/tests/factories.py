@@ -124,6 +124,7 @@ def create_complete_workflow(session: Session, *, suffix: str) -> CompleteWorkfl
     )
     claim = Claim(
         workflow_run_id=workflow.id,
+        claim_key=f"fixture-claim-{suffix}",
         statement="The fixture source published a fixture signal.",
         material=True,
         confidence_class="C4",
