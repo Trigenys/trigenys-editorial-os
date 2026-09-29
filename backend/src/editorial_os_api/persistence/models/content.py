@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Column,
@@ -88,7 +88,11 @@ class Draft(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         server_default="legacy",
         nullable=False,
     )
-    input_fingerprint: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(
+        String(128),
+        default=lambda: f"legacy:{uuid4()}",
+        nullable=False,
+    )
     title: Mapped[str] = mapped_column(Text, nullable=False)
     deck: Mapped[str | None] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text, nullable=False)
