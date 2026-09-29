@@ -17,7 +17,9 @@ from editorial_os_api.content_agent.contracts import (
 from editorial_os_api.domain.enums import (
     AuditActorKind,
     ClaimSupportStatus,
+    ConfidenceClass,
     ResearchBriefStatus,
+    RiskClass,
     WorkflowActionType,
     WorkflowStatus,
 )
@@ -509,8 +511,8 @@ class ContentAgent:
                     claim_key=claim.claim_key,
                     statement=claim.statement,
                     material=claim.material,
-                    confidence_class=claim.confidence_class,
-                    risk_class=claim.risk_class,
+                    confidence_class=ConfidenceClass(claim.confidence_class),
+                    risk_class=RiskClass(claim.risk_class),
                     support_status=support_status,
                     contested=claim.contested,
                     stale=claim.stale,
@@ -799,13 +801,14 @@ class ContentAgent:
             run = session.get(WorkflowRun, draft.workflow_run_id)
             if run is None:
                 raise ContentAgentError("Draft workflow run no longer exists.")
-            used_claim_ids = list(
-                session.scalars(
+            used_claim_ids = [
+                UUID(str(value))
+                for value in session.scalars(
                     select(draft_claim_links.c.claim_id).where(
                         draft_claim_links.c.draft_id == draft.id
                     )
                 )
-            )
+            ]
 
         return ContentAgentResult(
             workflow_run_id=draft.workflow_run_id,
