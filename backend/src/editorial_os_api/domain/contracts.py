@@ -8,8 +8,10 @@ from editorial_os_api.domain.enums import (
     AssetKind,
     AuditActorKind,
     ConfidenceClass,
+    ClaimSupportStatus,
     DistributionStatus,
     EvidenceTier,
+    ResearchBriefStatus,
     GateKind,
     GateOutcome,
     PublicationStatus,
@@ -17,6 +19,7 @@ from editorial_os_api.domain.enums import (
     SourceFetchStatus,
     SourceHealthStatus,
     SourceKind,
+    SourceRole,
     TopicDecision,
     TopicUrgency,
     WorkflowStatus,
@@ -108,6 +111,10 @@ class EvidenceItemContract(Contract):
     url: str
     excerpt: str | None = None
     tier: EvidenceTier
+    source_role: SourceRole = SourceRole.SECONDARY
+    stale: bool = False
+    extraction_method: str = "legacy"
+    metadata: dict[str, Any] = Field(default_factory=dict)
     observed_at: datetime
     published_at: datetime | None = None
     retain_until: datetime | None = None
@@ -117,12 +124,35 @@ class EvidenceItemContract(Contract):
 class ClaimContract(Contract):
     id: UUID
     workflow_run_id: UUID
+    claim_key: str = ""
     statement: str
     material: bool = True
     confidence_class: ConfidenceClass
+    confidence_reason_codes: list[str] = Field(default_factory=list)
     risk_class: RiskClass
+    support_status: ClaimSupportStatus = ClaimSupportStatus.UNKNOWN
     evidence_ids: list[UUID] = Field(default_factory=list)
+    stale: bool = False
     contested: bool = False
+
+
+class ResearchBriefContract(Contract):
+    id: UUID
+    workflow_run_id: UUID
+    topic_candidate_id: UUID
+    version: int
+    status: ResearchBriefStatus
+    confidence_class: ConfidenceClass
+    risk_class: RiskClass
+    reason_codes: list[str] = Field(default_factory=list)
+    claim_ids: list[UUID] = Field(default_factory=list)
+    evidence_ids: list[UUID] = Field(default_factory=list)
+    contradiction_claim_ids: list[UUID] = Field(default_factory=list)
+    unsupported_claim_ids: list[UUID] = Field(default_factory=list)
+    stale_claim_ids: list[UUID] = Field(default_factory=list)
+    source_plan: list[dict[str, Any]] = Field(default_factory=list)
+    budget_usage: dict[str, Any] = Field(default_factory=dict)
+    review_required: bool = False
 
 
 class EditorialBriefContract(Contract):
