@@ -18,6 +18,7 @@ from editorial_os_api.domain.enums import (
     SourceHealthStatus,
     SourceKind,
     TopicDecision,
+    TopicUrgency,
     WorkflowStatus,
 )
 
@@ -82,12 +83,22 @@ class SourceItemContract(Contract):
 class TopicCandidateContract(Contract):
     id: UUID
     workflow_run_id: UUID
+    version: int = 1
+    cluster_key: str = ""
     title: str
     proposed_angle: str
+    proposed_format: str = "article"
+    urgency: TopicUrgency = TopicUrgency.NORMAL
     decision: TopicDecision
+    novelty_score: int = 0
+    relevance_score: int = 0
+    source_diversity_score: int = 0
+    composite_score: int = 0
     risk_class: RiskClass
     confidence_class: ConfidenceClass
     reason_codes: list[str] = Field(default_factory=list)
+    source_item_ids: list[UUID] = Field(default_factory=list)
+    reason_details: dict[str, Any] = Field(default_factory=dict)
 
 
 class EvidenceItemContract(Contract):
