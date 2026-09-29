@@ -3,7 +3,12 @@
 Importing this module registers every table with Base.metadata for migrations/tests.
 """
 
-from editorial_os_api.persistence.models.content import Asset, Draft, draft_claim_links
+from editorial_os_api.persistence.models.content import (
+    Asset,
+    AssetManifest,
+    Draft,
+    draft_claim_links,
+)
 from editorial_os_api.persistence.models.delivery import (
     DistributionJob,
     PerformanceSnapshot,
@@ -28,6 +33,7 @@ from editorial_os_api.persistence.models.workflow import (
 
 __all__ = [
     "Asset",
+    "AssetManifest",
     "AuditEvent",
     "Claim",
     "DistributionJob",
