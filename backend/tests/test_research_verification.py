@@ -65,7 +65,7 @@ def _create_approved_run(
     _upgrade_schema()
     with get_session_factory().begin() as session:
         run = WorkflowRun(
-            vertical_key="technology",
+            vertical_key="research-verification-fixture",
             vertical_version="1",
             status=WorkflowStatus.TOPIC_APPROVED.value,
             risk_class=risk_class.value,
@@ -88,7 +88,7 @@ def _create_approved_run(
                 trust_tier=tier.value,
                 default_evidence_tier=tier.value,
                 locale="en",
-                vertical_keys=["technology"],
+                vertical_keys=["research-verification-fixture"],
                 fetch_policy={},
                 retention_days=30,
                 redact_raw_content=False,
