@@ -6,6 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from editorial_os_api.domain.enums import (
     AssetKind,
+    AssetManifestStatus,
+    AssetOrigin,
+    AssetRightsStatus,
     AuditActorKind,
     ClaimSupportStatus,
     ConfidenceClass,
@@ -187,14 +190,43 @@ class DraftContract(Contract):
     unsupported_claim_ids: list[UUID] = Field(default_factory=list)
 
 
+class AssetManifestContract(Contract):
+    id: UUID
+    workflow_run_id: UUID
+    draft_id: UUID
+    version: int
+    status: AssetManifestStatus
+    text_only: bool = False
+    rights_status: AssetRightsStatus
+    provider_name: str | None = None
+    asset_ids: list[UUID] = Field(default_factory=list)
+    approval_snapshot: dict[str, Any] = Field(default_factory=dict)
+
+
 class AssetContract(Contract):
     id: UUID
     workflow_run_id: UUID
+    manifest_id: UUID | None = None
     version: int
+    slot: str = "legacy"
     kind: AssetKind
+    origin: AssetOrigin = AssetOrigin.PROVIDED
+    provider: str = "legacy"
     uri: str | None = None
+    external_id: str | None = None
+    filename: str | None = None
+    mime_type: str | None = None
+    aspect_ratio: str | None = None
+    width: int | None = None
+    height: int | None = None
+    source_url: str | None = None
+    license_name: str | None = None
+    license_url: str | None = None
+    rights_status: AssetRightsStatus = AssetRightsStatus.REVIEW_REQUIRED
     alt_text: str | None = None
     caption: str | None = None
+    generation_metadata: dict[str, Any] = Field(default_factory=dict)
+    variants: list[dict[str, Any]] = Field(default_factory=list)
     provenance: dict[str, Any] = Field(default_factory=dict)
     owner_key: str
 
