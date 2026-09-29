@@ -27,7 +27,7 @@ Provider SDK objects never cross into the domain contract.
 - `Source` — configured source identity and retention policy.
 - `SourceItem` — normalized fetched source item with deduplication fingerprint and redaction/retention state.
 - `WorkflowRun` — one canonical editorial run and its current lifecycle classification.
-- `TopicCandidate` — editorial proposal produced from one or more signals.
+- `TopicCandidate` — versioned editorial proposal produced from one or more clustered signals, with source pointers, deterministic scores, decision reasons, format and urgency.
 - `EvidenceItem` — evidence with provenance, freshness and retention metadata.
 - `Claim` — factual/editorial statement classified by materiality, confidence and risk.
 - `claim_evidence_links` — many-to-many support graph between claims and evidence.
@@ -52,6 +52,7 @@ The database stores the graph; policy determines whether the graph is sufficient
 
 Mutable editorial artifacts are versioned rather than silently overwritten where approval history matters:
 
+- topic candidate: `workflow_run_id + cluster_key` identity, explicit `version` for operator edits before Gate A;
 - editorial brief: `workflow_run_id + version`;
 - draft: `workflow_run_id + locale + version`;
 - asset: `workflow_run_id + kind + version`.
