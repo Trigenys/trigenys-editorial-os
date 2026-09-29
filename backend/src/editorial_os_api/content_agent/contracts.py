@@ -21,6 +21,7 @@ class ContentEvidenceReference(ContentModel):
     evidence_id: UUID
     url: str
     tier: str
+    stance: str
 
 
 class ContentClaimContext(ContentModel):
