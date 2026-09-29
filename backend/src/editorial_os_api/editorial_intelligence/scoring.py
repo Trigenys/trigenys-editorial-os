@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import math
+import re
 from collections import Counter
 from datetime import datetime
 from hashlib import sha256
-import math
-import re
 
 from editorial_os_api.domain.enums import TopicDecision
 from editorial_os_api.editorial_intelligence.contracts import (
