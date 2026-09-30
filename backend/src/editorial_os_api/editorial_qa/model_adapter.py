@@ -4,7 +4,6 @@ import json
 from uuid import UUID
 
 from editorial_os_api.editorial_qa.contracts import (
-    EditorialQAAdapter,
     QAAssetContext,
     QAClaimContext,
     QADraftContext,
@@ -20,7 +19,7 @@ from editorial_os_api.model_gateway import (
 from editorial_os_api.vertical_packs import VerticalPack
 
 
-class ModelEditorialQAAdapter(EditorialQAAdapter):
+class ModelEditorialQAAdapter:
     name = "model-gateway"
 
     def __init__(self, gateway: ModelGateway) -> None:
