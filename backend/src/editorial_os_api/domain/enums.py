@@ -77,6 +77,7 @@ class WorkflowActionType(StrEnum):
     DRAFT_COMPLETED = "DRAFT_COMPLETED"
     ASSETS_COMPLETED = "ASSETS_COMPLETED"
     QA_PASSED = "QA_PASSED"
+    QA_REVISION_REQUIRED = "QA_REVISION_REQUIRED"
     PACKAGE_READY = "PACKAGE_READY"
     PUBLICATION_COMPLETED = "PUBLICATION_COMPLETED"
     DISTRIBUTION_COMPLETED = "DISTRIBUTION_COMPLETED"
@@ -139,6 +140,19 @@ class AssetManifestStatus(StrEnum):
     READY = "READY"
     REVIEW_REQUIRED = "REVIEW_REQUIRED"
     BLOCKED = "BLOCKED"
+
+
+class QAOutcome(StrEnum):
+    PASS = "PASS"
+    REVISE = "REVISE"
+    BLOCK = "BLOCK"
+
+
+class QAFindingSeverity(StrEnum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    BLOCKER = "BLOCKER"
 
 
 class PublicationStatus(StrEnum):
