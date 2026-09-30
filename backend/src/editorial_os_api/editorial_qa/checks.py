@@ -96,7 +96,10 @@ def deterministic_findings(
                     "contradiction",
                     "Material claim has contradictory evidence and needs revision.",
                     claim_id=claim.id,
-                    evidence_ids=supporting,
+                    evidence_ids=[
+                        *supporting,
+                        *claim.refuting_evidence_ids,
+                    ],
                     rule="revise_contested_material_claims",
                 )
             )
