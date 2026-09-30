@@ -165,6 +165,7 @@ class PublicationStatus(StrEnum):
 
 class DistributionStatus(StrEnum):
     PREVIEW = "PREVIEW"
+    DISPATCHING = "DISPATCHING"
     SCHEDULED = "SCHEDULED"
     POSTED = "POSTED"
     FAILED_RETRYABLE = "FAILED_RETRYABLE"
