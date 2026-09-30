@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from editorial_os_api.domain.enums import (
     AuditActorKind,
-    GateKind,
     WorkflowActionType,
     WorkflowStatus,
 )
