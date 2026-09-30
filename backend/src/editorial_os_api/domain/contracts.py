@@ -17,6 +17,8 @@ from editorial_os_api.domain.enums import (
     GateKind,
     GateOutcome,
     PublicationStatus,
+    QAFindingSeverity,
+    QAOutcome,
     ResearchBriefStatus,
     RiskClass,
     SourceFetchStatus,
@@ -229,6 +231,24 @@ class AssetContract(Contract):
     variants: list[dict[str, Any]] = Field(default_factory=list)
     provenance: dict[str, Any] = Field(default_factory=dict)
     owner_key: str
+
+
+class EditorialQAReviewContract(Contract):
+    id: UUID
+    workflow_run_id: UUID
+    draft_id: UUID
+    manifest_id: UUID
+    version: int
+    draft_version: int
+    manifest_version: int
+    outcome: QAOutcome
+    confidence_class: ConfidenceClass
+    risk_class: RiskClass
+    human_approval_required: bool
+    gate_b_ready: bool
+    findings: list[dict[str, Any]] = Field(default_factory=list)
+    reason_codes: list[str] = Field(default_factory=list)
+    subject_snapshot: dict[str, Any] = Field(default_factory=dict)
 
 
 class GateDecisionContract(Contract):
