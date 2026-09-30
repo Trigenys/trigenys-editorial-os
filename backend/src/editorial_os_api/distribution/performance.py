@@ -114,10 +114,11 @@ class PerformanceService:
 
     def ingest(self, event: PerformanceEvent) -> PerformanceSnapshot:
         with self.session_factory.begin() as session:
-            resolved = self._resolve_links(session, event)
-            workflow_run_id = resolved["workflow_run_id"]
-            publication_id = resolved["publication_id"]
-            distribution_job_id = resolved["distribution_job_id"]
+            (
+                workflow_run_id,
+                publication_id,
+                distribution_job_id,
+            ) = self._resolve_links(session, event)
 
             existing = session.scalar(
                 select(PerformanceSnapshot).where(
@@ -188,7 +189,7 @@ class PerformanceService:
     def _resolve_links(
         session: Session,
         event: PerformanceEvent,
-    ) -> dict[str, UUID | None]:
+    ) -> tuple[UUID, UUID | None, UUID | None]:
         workflow_run_id = event.workflow_run_id
         publication_id = event.publication_id
         distribution_job_id = event.distribution_job_id
@@ -237,11 +238,7 @@ class PerformanceService:
                     "Distribution job does not belong to the resolved publication."
                 )
 
-        return {
-            "workflow_run_id": workflow_run_id,
-            "publication_id": publication_id,
-            "distribution_job_id": distribution_job_id,
-        }
+        return workflow_run_id, publication_id, distribution_job_id
 
     def _advance_measurement(
         self,
