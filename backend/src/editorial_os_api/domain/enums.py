@@ -123,6 +123,24 @@ class AssetKind(StrEnum):
     OTHER = "OTHER"
 
 
+class AssetOrigin(StrEnum):
+    GENERATED = "GENERATED"
+    EXTERNAL = "EXTERNAL"
+    PROVIDED = "PROVIDED"
+
+
+class AssetRightsStatus(StrEnum):
+    CLEAR = "CLEAR"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    RESTRICTED = "RESTRICTED"
+
+
+class AssetManifestStatus(StrEnum):
+    READY = "READY"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    BLOCKED = "BLOCKED"
+
+
 class PublicationStatus(StrEnum):
     DRAFT = "DRAFT"
     SCHEDULED = "SCHEDULED"

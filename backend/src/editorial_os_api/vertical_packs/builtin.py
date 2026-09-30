@@ -2,6 +2,7 @@ from editorial_os_api.vertical_packs.contracts import (
     SeoRules,
     SourceRules,
     VerticalPack,
+    VisualRules,
     VoiceRules,
 )
 
@@ -32,6 +33,16 @@ def generic_demo_pack() -> VerticalPack:
         ),
         source_rules=SourceRules(),
         seo=SeoRules(),
+        visual=VisualRules(
+            assets_required=False,
+            allowed_kinds=["IMAGE", "INFOGRAPHIC"],
+            allowed_aspect_ratios=["16:9", "1:1"],
+            max_assets=3,
+            require_alt_text=True,
+            require_caption=True,
+            allow_external_assets=True,
+            allow_generated_assets=True,
+        ),
         internal_link_topics=["background", "explainer"],
         metadata={"kind": "demo"},
     )
@@ -79,6 +90,16 @@ def trigenys_insight_pack() -> VerticalPack:
             title_max_chars=65,
             description_max_chars=165,
             require_keywords=True,
+        ),
+        visual=VisualRules(
+            assets_required=False,
+            allowed_kinds=["IMAGE", "INFOGRAPHIC"],
+            allowed_aspect_ratios=["16:9", "1:1"],
+            max_assets=5,
+            require_alt_text=True,
+            require_caption=True,
+            allow_external_assets=True,
+            allow_generated_assets=True,
         ),
         internal_link_topics=[
             "Cameroon digital economy",

@@ -7,6 +7,7 @@ from editorial_os_api.vertical_packs.contracts import (
     SeoRules,
     SourceRules,
     VerticalPack,
+    VisualRules,
     VoiceRules,
 )
 
@@ -14,6 +15,7 @@ __all__ = [
     "SeoRules",
     "SourceRules",
     "VerticalPack",
+    "VisualRules",
     "VoiceRules",
     "generic_demo_pack",
     "get_builtin_vertical_pack",

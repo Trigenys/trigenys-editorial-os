@@ -36,7 +36,8 @@ Provider SDK objects never cross into the domain contract.
 - `brief_claim_links` — exact claims authorized into a specific brief version.
 - `Draft` — versioned locale/format-specific content artifact with research provenance, vertical-pack snapshot, structured sections, SEO metadata, citations, unsupported factual assertions and revision ancestry.
 - `draft_claim_links` — exact canonical claim coverage/support status for a specific draft version.
-- `Asset` — versioned image/video/document manifest with provenance.
+- `AssetManifest` — versioned visual decision for one draft, including text-only state, aggregate rights, exact asset IDs and the Gate-B approval snapshot.
+- `Asset` — independently versioned asset slot with origin, provider, URI, source/license data, rights status, alt/caption/filename, generation metadata, variants and provenance.
 - `GateDecision` — immutable human decision against a specific artifact version.
 - `AuditEvent` — immutable event ledger for consequential state/actions.
 - `Publication` — CMS-side effect ownership and receipt.
@@ -57,7 +58,8 @@ Mutable editorial artifacts are versioned rather than silently overwritten where
 - research brief: `workflow_run_id + input_fingerprint` idempotency and explicit version;
 - editorial brief: `workflow_run_id + version`;
 - draft: `workflow_run_id + locale + version`;
-- asset: `workflow_run_id + kind + version`.
+- asset manifest: `workflow_run_id + draft_id + version`, plus an input fingerprint for retry safety;
+- asset: `workflow_run_id + kind + version`, with exact manifest/slot linkage.
 
 A `GateDecision` records `artifact_type + artifact_id + artifact_version`. Editing an artifact produces a new version and therefore cannot inherit approval accidentally.
 

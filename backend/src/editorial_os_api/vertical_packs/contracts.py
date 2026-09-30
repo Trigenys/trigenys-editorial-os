@@ -28,6 +28,21 @@ class SeoRules(VerticalPackModel):
     require_keywords: bool = True
 
 
+class VisualRules(VerticalPackModel):
+    assets_required: bool = False
+    allowed_kinds: list[str] = Field(
+        default_factory=lambda: ["IMAGE", "INFOGRAPHIC"]
+    )
+    allowed_aspect_ratios: list[str] = Field(
+        default_factory=lambda: ["16:9", "1:1"]
+    )
+    max_assets: int = Field(default=3, ge=0, le=20)
+    require_alt_text: bool = True
+    require_caption: bool = True
+    allow_external_assets: bool = True
+    allow_generated_assets: bool = True
+
+
 class VerticalPack(VerticalPackModel):
     key: str = Field(
         min_length=1,
@@ -44,6 +59,7 @@ class VerticalPack(VerticalPackModel):
     voice: VoiceRules = Field(default_factory=VoiceRules)
     source_rules: SourceRules = Field(default_factory=SourceRules)
     seo: SeoRules = Field(default_factory=SeoRules)
+    visual: VisualRules = Field(default_factory=VisualRules)
     internal_link_topics: list[str] = Field(default_factory=list)
     metadata: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
 
@@ -57,6 +73,12 @@ class VerticalPack(VerticalPackModel):
             raise ValueError("default_locale must be listed in locales.")
         if self.default_format not in self.formats:
             raise ValueError("default_format must be listed in formats.")
+        if len(self.visual.allowed_kinds) != len(set(self.visual.allowed_kinds)):
+            raise ValueError("visual.allowed_kinds must be unique.")
+        if len(self.visual.allowed_aspect_ratios) != len(
+            set(self.visual.allowed_aspect_ratios)
+        ):
+            raise ValueError("visual.allowed_aspect_ratios must be unique.")
         return self
 
     def supports(self, *, locale: str, content_format: str) -> bool:

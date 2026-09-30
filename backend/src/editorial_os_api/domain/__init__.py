@@ -2,6 +2,7 @@
 
 from editorial_os_api.domain.contracts import (
     AssetContract,
+    AssetManifestContract,
     AuditEventContract,
     ClaimContract,
     DistributionJobContract,
@@ -19,6 +20,9 @@ from editorial_os_api.domain.contracts import (
 )
 from editorial_os_api.domain.enums import (
     AssetKind,
+    AssetManifestStatus,
+    AssetOrigin,
+    AssetRightsStatus,
     AuditActorKind,
     ClaimSupportStatus,
     ConfidenceClass,
@@ -39,6 +43,10 @@ from editorial_os_api.domain.enums import (
 __all__ = [
     "AssetContract",
     "AssetKind",
+    "AssetManifestContract",
+    "AssetManifestStatus",
+    "AssetOrigin",
+    "AssetRightsStatus",
     "AuditActorKind",
     "AuditEventContract",
     "ClaimContract",
