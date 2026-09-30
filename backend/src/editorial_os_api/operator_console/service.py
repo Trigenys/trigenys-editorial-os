@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -94,19 +95,19 @@ class OperatorConsoleService:
                 statement = statement.where(WorkflowRun.updated_at >= updated_after)
             if updated_before is not None:
                 statement = statement.where(WorkflowRun.updated_at <= updated_before)
+            if topic_decision:
+                statement = statement.where(
+                    WorkflowRun.id.in_(
+                        select(TopicCandidate.workflow_run_id).where(
+                            TopicCandidate.decision == topic_decision.upper()
+                        )
+                    )
+                )
 
             runs = list(session.scalars(statement.limit(limit)))
             summaries: list[OperatorRunSummary] = []
             for run in runs:
                 topic = self._latest_topic(session, run.id)
-                if (
-                    topic_decision
-                    and (
-                        topic is None
-                        or topic.decision.upper() != topic_decision.upper()
-                    )
-                ):
-                    continue
                 summaries.append(self._summary(run, topic))
             return summaries
 
@@ -516,7 +517,7 @@ class OperatorConsoleService:
     @staticmethod
     def _recovery_action(
         run: WorkflowRun,
-    ) -> str | None:
+    ) -> Literal["RETRY", "RESUME"] | None:
         status = WorkflowStatus(run.status)
         if status is WorkflowStatus.FAILED_RETRYABLE:
             return "RETRY"
