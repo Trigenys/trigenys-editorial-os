@@ -47,6 +47,10 @@ STANDARD_TRANSITIONS: dict[WorkflowActionType, tuple[WorkflowStatus, WorkflowSta
         WorkflowStatus.ASSETS_READY,
         WorkflowStatus.QA_PASSED,
     ),
+    WorkflowActionType.QA_REVISION_REQUIRED: (
+        WorkflowStatus.ASSETS_READY,
+        WorkflowStatus.DRAFTED,
+    ),
     WorkflowActionType.PUBLICATION_COMPLETED: (
         WorkflowStatus.PUBLISH_APPROVED,
         WorkflowStatus.PUBLISHED,
