@@ -35,6 +35,13 @@ class QAClaimContext(QAModel):
     supporting_evidence_ids: list[UUID] = Field(default_factory=list)
 
 
+class QAEvidenceContext(QAModel):
+    id: UUID
+    url: str
+    tier: str
+    stale: bool = False
+
+
 class QAAssetContext(QAModel):
     id: UUID
     version: int
