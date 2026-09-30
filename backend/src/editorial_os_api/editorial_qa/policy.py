@@ -24,6 +24,7 @@ class EditorialQAPolicy(BaseModel):
 
     version: str = Field(default="1", min_length=1, max_length=80)
     min_pass_confidence: ConfidenceClass = ConfidenceClass.C2
+    sensitive_min_confidence: ConfidenceClass = ConfidenceClass.C3
     high_risk_human_approval: list[RiskClass] = Field(
         default_factory=lambda: [RiskClass.R2, RiskClass.R3]
     )
@@ -32,6 +33,7 @@ class EditorialQAPolicy(BaseModel):
     revise_stale_material_claims: bool = True
     revise_contested_material_claims: bool = True
     block_restricted_assets: bool = True
+    block_restricted_risk: bool = True
 
 
 def confidence_at_least(
