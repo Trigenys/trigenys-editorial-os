@@ -20,7 +20,11 @@ from editorial_os_api.persistence.models.evidence import (
     ResearchBrief,
     claim_evidence_links,
 )
-from editorial_os_api.persistence.models.governance import AuditEvent, GateDecision
+from editorial_os_api.persistence.models.governance import (
+    AuditEvent,
+    EditorialQAReview,
+    GateDecision,
+)
 from editorial_os_api.persistence.models.model_usage import ModelUsageRecord
 from editorial_os_api.persistence.models.source import Source, SourceFetch, SourceItem
 from editorial_os_api.persistence.models.workflow import (
@@ -39,6 +43,7 @@ __all__ = [
     "DistributionJob",
     "Draft",
     "EditorialBrief",
+    "EditorialQAReview",
     "EvidenceItem",
     "GateDecision",
     "ModelUsageRecord",

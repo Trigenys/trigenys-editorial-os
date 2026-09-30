@@ -106,6 +106,13 @@ Visual planning and asset materialization are separate provider-agnostic boundar
 
 Rights are aggregated conservatively: unresolved rights remain visible for QA/human review, while restricted rights block the workflow.
 
+### Editorial QA
+The Editorial QA Agent runs after `ASSETS_READY` and before Gate B. Deterministic checks own factual support, freshness, contradiction handling, confidence thresholds, asset rights and vertical-pack rules. The model-facing QA adapter is limited to semantic consistency checks such as headline/body alignment, asset/text alignment and editorial quality.
+
+Each QA execution persists a versioned `EditorialQAReview` with `PASS | REVISE | BLOCK`, structured findings, policy rule references and an exact snapshot of draft, manifest, asset, claim and evidence identities. `PASS` advances to `QA_PASSED`; `REVISE` returns to `DRAFTED`; `BLOCK` enters `BLOCKED`.
+
+High-risk content remains human-approval-required regardless of model confidence. A semantic model finding can request revision, but model output cannot waive deterministic evidence, risk or rights rules.
+
 ### Model gateway
 Agents call the provider-independent `ModelGateway`, never a provider SDK. A task-specific `ModelPolicy` chooses the route, the PostgreSQL `BudgetLedger` reserves run/agent spend before the call, and all structured output is validated before it can enter canonical state.
 

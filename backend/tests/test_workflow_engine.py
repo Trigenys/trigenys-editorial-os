@@ -179,6 +179,19 @@ def test_duplicate_delivery_is_a_noop_and_conflicting_reuse_fails() -> None:
         engine.apply(run_id, conflicting)
 
 
+def test_qa_revision_action_routes_assets_ready_back_to_drafting() -> None:
+    run_id = _create_run(status=WorkflowStatus.ASSETS_READY)
+    engine = PostgresWorkflowEngine(get_session_factory())
+
+    result = engine.apply(
+        run_id,
+        _command(WorkflowActionType.QA_REVISION_REQUIRED),
+    )
+
+    assert result.status is WorkflowStatus.DRAFTED
+    assert result.pending_gate is None
+
+
 def test_gate_b_revision_routes_back_to_drafting() -> None:
     run_id = _create_run(status=WorkflowStatus.QA_PASSED)
     engine = PostgresWorkflowEngine(get_session_factory())
