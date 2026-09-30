@@ -8,6 +8,7 @@ import httpx
 from editorial_os_api.distribution.contracts import (
     ChannelVariant,
     DistributionReceipt,
+    DistributionReconciliationRequired,
     DistributionRetryableError,
     DistributionTerminalError,
 )
@@ -76,14 +77,23 @@ class PostizAdapter:
                 },
                 json=payload,
             )
-        except httpx.HTTPError as exc:
+        except httpx.ConnectError as exc:
             raise DistributionRetryableError(
-                f"Postiz request failed before a receipt was stored: {exc}"
+                f"Postiz connection failed before delivery: {exc}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise DistributionReconciliationRequired(
+                "Postiz delivery outcome is ambiguous after a transport error."
             ) from exc
 
-        if response.status_code >= 500 or response.status_code in {408, 425, 429}:
+        if response.status_code in {425, 429}:
             raise DistributionRetryableError(
-                f"Postiz returned retryable HTTP {response.status_code}."
+                f"Postiz rejected the request with retryable HTTP {response.status_code}."
+            )
+        if response.status_code >= 500 or response.status_code == 408:
+            raise DistributionReconciliationRequired(
+                f"Postiz returned ambiguous HTTP {response.status_code}; "
+                "reconcile before retrying."
             )
         if response.status_code >= 400:
             raise DistributionTerminalError(
