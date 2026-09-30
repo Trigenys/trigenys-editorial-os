@@ -362,6 +362,44 @@ def test_high_risk_pass_still_requires_human_approval() -> None:
     assert result.workflow_status == WorkflowStatus.QA_PASSED.value
 
 
+def test_sensitive_r2_requires_c3_confidence() -> None:
+    draft_id = _create_subject(
+        risk_class=RiskClass.R2,
+        confidence_class=ConfidenceClass.C2,
+    )
+
+    result = EditorialQAAgent(get_session_factory()).review(
+        draft_id,
+        adapter=FixtureQAAdapter(),
+    )
+
+    assert result.outcome is QAOutcome.REVISE
+    finding = next(
+        item
+        for item in result.findings
+        if item.code == "MATERIAL_CLAIM_LOW_CONFIDENCE"
+    )
+    assert finding.policy_rule == "sensitive_min_confidence"
+    assert result.human_approval_required is True
+
+
+def test_restricted_r3_blocks_regardless_of_confidence() -> None:
+    draft_id = _create_subject(
+        risk_class=RiskClass.R3,
+        confidence_class=ConfidenceClass.C4,
+    )
+
+    result = EditorialQAAgent(get_session_factory()).review(
+        draft_id,
+        adapter=FixtureQAAdapter(),
+    )
+
+    assert result.outcome is QAOutcome.BLOCK
+    assert "R3_RESTRICTED" in _codes(result)
+    assert result.human_approval_required is True
+    assert result.workflow_status == WorkflowStatus.BLOCKED.value
+
+
 def test_identical_retry_reuses_review_without_second_adapter_call() -> None:
     draft_id = _create_subject()
     adapter = FixtureQAAdapter()
