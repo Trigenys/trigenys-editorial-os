@@ -238,9 +238,12 @@ def _claim_contexts(
         for item in evidence_models
     }
     supports: dict[UUID, list[UUID]] = {claim_id: [] for claim_id in claim_ids}
+    refutes: dict[UUID, list[UUID]] = {claim_id: [] for claim_id in claim_ids}
     for row in rows:
         if row.stance == "SUPPORTS":
             supports.setdefault(row.claim_id, []).append(row.evidence_item_id)
+        elif row.stance == "REFUTES":
+            refutes.setdefault(row.claim_id, []).append(row.evidence_item_id)
 
     contexts = [
         QAClaimContext(
@@ -254,6 +257,7 @@ def _claim_contexts(
             stale=claim.stale,
             contested=claim.contested,
             supporting_evidence_ids=supports.get(claim.id, []),
+            refuting_evidence_ids=refutes.get(claim.id, []),
         )
         for claim in claims
     ]
