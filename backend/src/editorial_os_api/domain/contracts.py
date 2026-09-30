@@ -17,7 +17,6 @@ from editorial_os_api.domain.enums import (
     GateKind,
     GateOutcome,
     PublicationStatus,
-    QAFindingSeverity,
     QAOutcome,
     ResearchBriefStatus,
     RiskClass,
