@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Protocol
 
 
@@ -35,7 +36,9 @@ class CMSDraftReceipt:
 @dataclass(frozen=True)
 class CMSPublishReceipt:
     external_id: str
+    status: str = "PUBLISHED"
     external_url: str | None = None
+    scheduled_at: datetime | None = None
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -62,9 +65,11 @@ class CMSAdapter(Protocol):
 
     def publish(
         self,
+        document: CMSDocument,
         external_id: str,
         *,
         target: str,
         owner_key: str,
         idempotency_key: str,
+        scheduled_at: datetime | None = None,
     ) -> CMSPublishReceipt: ...
