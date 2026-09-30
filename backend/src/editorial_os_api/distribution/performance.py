@@ -178,12 +178,12 @@ class PerformanceService:
 
         self._advance_measurement(workflow_run_id, snapshot_id)
         with self.session_factory() as session:
-            snapshot = session.get(PerformanceSnapshot, snapshot_id)
-            if snapshot is None:
+            stored_snapshot = session.get(PerformanceSnapshot, snapshot_id)
+            if stored_snapshot is None:
                 raise PerformanceIngestionError(
                     "Performance snapshot disappeared after ingestion."
                 )
-            return self._detached(session, snapshot)
+            return self._detached(session, stored_snapshot)
 
     @staticmethod
     def _resolve_links(
