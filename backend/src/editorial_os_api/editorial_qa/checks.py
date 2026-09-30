@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from editorial_os_api.domain.enums import (
     AssetManifestStatus,
     AssetRightsStatus,
@@ -305,9 +307,9 @@ def _finding(
     message: str,
     *,
     location: str | None = None,
-    claim_id=None,
-    evidence_ids=None,
-    asset_id=None,
+    claim_id: UUID | None = None,
+    evidence_ids: list[UUID] | None = None,
+    asset_id: UUID | None = None,
     rule: str | None = None,
     metadata: dict[str, object] | None = None,
 ) -> QAFinding:
