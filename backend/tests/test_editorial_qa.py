@@ -69,6 +69,7 @@ def _create_subject(
     unsupported_draft_assertion: bool = False,
     include_supporting_evidence: bool = True,
     stale: bool = False,
+    contested: bool = False,
     risk_class: RiskClass = RiskClass.R0,
     confidence_class: ConfidenceClass = ConfidenceClass.C4,
 ) -> UUID:
@@ -143,9 +144,13 @@ def _create_subject(
             confidence_class=confidence_class.value,
             confidence_reason_codes=["fixture"],
             risk_class=risk_class.value,
-            support_status="STALE" if stale else "SUPPORTED",
+            support_status=(
+                "CONTESTED"
+                if contested
+                else "STALE" if stale else "SUPPORTED"
+            ),
             stale=stale,
-            contested=False,
+            contested=contested,
         )
         session.add(claim)
         session.flush()
@@ -183,6 +188,32 @@ def _create_subject(
                     reason_code="fixture",
                 )
             )
+            if contested:
+                refuting = EvidenceItem(
+                    workflow_run_id=run.id,
+                    source_item_id=None,
+                    url="https://example.test/official-correction",
+                    excerpt="The launch claim is disputed.",
+                    tier="E3",
+                    source_role="PRIMARY",
+                    stale=False,
+                    extraction_method="fixture",
+                    metadata_payload={},
+                    observed_at=run.created_at,
+                    published_at=run.created_at,
+                    retain_until=None,
+                    redacted_at=None,
+                )
+                session.add(refuting)
+                session.flush()
+                session.execute(
+                    insert(claim_evidence_links).values(
+                        claim_id=claim.id,
+                        evidence_item_id=refuting.id,
+                        stance="REFUTES",
+                        reason_code="fixture-refutation",
+                    )
+                )
 
         manifest = AssetManifest(
             workflow_run_id=run.id,
@@ -272,6 +303,23 @@ def test_stale_material_evidence_requires_revision() -> None:
 
     assert result.outcome is QAOutcome.REVISE
     assert "MATERIAL_CLAIM_STALE" in _codes(result)
+    assert result.workflow_status == WorkflowStatus.DRAFTED.value
+
+
+def test_contested_material_claim_traces_both_evidence_sides() -> None:
+    draft_id = _create_subject(contested=True)
+
+    result = EditorialQAAgent(get_session_factory()).review(
+        draft_id,
+        adapter=FixtureQAAdapter(),
+    )
+
+    assert result.outcome is QAOutcome.REVISE
+    finding = next(
+        item for item in result.findings if item.code == "MATERIAL_CLAIM_CONTESTED"
+    )
+    assert len(finding.evidence_ids) == 2
+    assert finding.policy_rule == "revise_contested_material_claims"
     assert result.workflow_status == WorkflowStatus.DRAFTED.value
 
 
