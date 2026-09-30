@@ -32,7 +32,7 @@ Unsupported factual assertions already recorded by the Content Agent are BLOCKER
 
 ## Risk policy
 
-`EditorialQAPolicy` is versioned and persisted with the review. The default requires at least C2 for material claims, marks R2 and R3 as human-approval-required, requires semantic consistency checks, blocks unsupported material claims and restricted asset rights, and requests revision for stale or contested material claims.
+`EditorialQAPolicy` is versioned and persisted with the review. The default requires at least C2 for routine/elevated material claims and C3 for R2/R3 claims, marks R2 and R3 as human-approval-required, blocks R3, requires semantic consistency checks, blocks unsupported material claims and restricted asset rights, and escalates unresolved R2/R3 contradictions.
 
 High risk is never neutralized by high model confidence.
 
