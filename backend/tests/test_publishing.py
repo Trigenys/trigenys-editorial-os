@@ -133,11 +133,11 @@ def _create_ready_draft(*, with_asset: bool = False) -> UUID:
         return draft.id
 
 
-def _approve_gate_c(draft_id: UUID) -> UUID:
+def _approve_gate_c(publication_id: UUID) -> UUID:
     with get_session_factory().begin() as session:
-        draft = session.get(Draft, draft_id)
-        assert draft is not None
-        run = session.get(WorkflowRun, draft.workflow_run_id)
+        publication = session.get(Publication, publication_id)
+        assert publication is not None
+        run = session.get(WorkflowRun, publication.workflow_run_id)
         assert run is not None
         run.status = WorkflowStatus.PUBLISH_APPROVED.value
         session.add(
@@ -145,14 +145,14 @@ def _approve_gate_c(draft_id: UUID) -> UUID:
                 workflow_run_id=run.id,
                 gate=GateKind.PUBLISH.value,
                 outcome=GateOutcome.APPROVED.value,
-                artifact_type="draft",
-                artifact_id=draft.id,
-                artifact_version=draft.version,
+                artifact_type="publication",
+                artifact_id=publication.id,
+                artifact_version=1,
                 actor_id="fixture-operator",
                 reason=None,
                 decided_at=datetime.now(UTC),
                 policy_version="1",
-                details={"target": "staging"},
+                details={"target": publication.target},
             )
         )
         return run.id
@@ -189,13 +189,15 @@ class FixtureCMS:
 
     def publish(
         self,
+        document: CMSDocument,
         external_id: str,
         *,
         target: str,
         owner_key: str,
         idempotency_key: str,
+        scheduled_at: datetime | None = None,
     ) -> CMSPublishReceipt:
-        del target, owner_key, idempotency_key
+        del document, target, owner_key, idempotency_key, scheduled_at
         self.publish_calls += 1
         return CMSPublishReceipt(
             external_id=external_id,
@@ -303,7 +305,7 @@ def test_draft_approve_publish_lifecycle_is_idempotent() -> None:
     adapter = FixtureCMS()
     service = PublishingService(get_session_factory())
     publication = service.ensure_cms_draft(draft_id, adapter=adapter, target="staging")
-    run_id = _approve_gate_c(draft_id)
+    run_id = _approve_gate_c(publication.id)
 
     published = service.publish(publication.id, adapter=adapter)
     replay = service.publish(publication.id, adapter=adapter)
