@@ -144,9 +144,10 @@ def deterministic_findings(
                 )
             )
 
+        required_confidence = _required_confidence(subject.risk_class, policy)
         if not confidence_at_least(
             claim.confidence_class,
-            policy.min_pass_confidence,
+            required_confidence,
         ):
             findings.append(
                 _finding(
@@ -155,11 +156,15 @@ def deterministic_findings(
                     "confidence",
                     (
                         f"Material claim confidence {claim.confidence_class.value} "
-                        f"is below required {policy.min_pass_confidence.value}."
+                        f"is below required {required_confidence.value}."
                     ),
                     claim_id=claim.id,
                     evidence_ids=supporting,
-                    rule="min_pass_confidence",
+                    rule=(
+                        "sensitive_min_confidence"
+                        if subject.risk_class in {RiskClass.R2, RiskClass.R3}
+                        else "min_pass_confidence"
+                    ),
                 )
             )
 
@@ -346,3 +351,12 @@ def _contradiction_severity(risk_class: RiskClass) -> QAFindingSeverity:
     if risk_class in {RiskClass.R2, RiskClass.R3}:
         return QAFindingSeverity.BLOCKER
     return QAFindingSeverity.ERROR
+
+
+def _required_confidence(
+    risk_class: RiskClass,
+    policy: EditorialQAPolicy,
+):
+    if risk_class in {RiskClass.R2, RiskClass.R3}:
+        return policy.sensitive_min_confidence
+    return policy.min_pass_confidence
