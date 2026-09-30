@@ -7,6 +7,7 @@ from editorial_os_api.domain.enums import (
     AssetRightsStatus,
     ClaimSupportStatus,
     QAFindingSeverity,
+    RiskClass,
 )
 from editorial_os_api.editorial_qa.contracts import QAFinding
 from editorial_os_api.editorial_qa.loading import QASubject
@@ -32,6 +33,17 @@ def deterministic_findings(
                 location="draft.body",
                 rule="block_unsupported_material_claims",
                 metadata={"statement": statement},
+            )
+        )
+
+    if policy.block_restricted_risk and subject.risk_class is RiskClass.R3:
+        findings.append(
+            _finding(
+                "R3_RESTRICTED",
+                QAFindingSeverity.BLOCKER,
+                "risk",
+                "R3 content cannot pass QA until an authorized human resolves the block.",
+                rule="block_restricted_risk",
             )
         )
 
