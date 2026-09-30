@@ -15,6 +15,7 @@ from editorial_os_api.domain.enums import (
 )
 from editorial_os_api.editorial_qa import (
     EditorialQAAgent,
+    EditorialQAResult,
     QAAssetContext,
     QAClaimContext,
     QADraftContext,
@@ -32,7 +33,7 @@ from editorial_os_api.persistence.models import (
     draft_claim_links,
 )
 from editorial_os_api.persistence.session import get_session_factory
-from editorial_os_api.vertical_packs import generic_demo_pack
+from editorial_os_api.vertical_packs import VerticalPack, generic_demo_pack
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -55,7 +56,7 @@ class FixtureQAAdapter:
         draft: QADraftContext,
         claims: list[QAClaimContext],
         assets: list[QAAssetContext],
-        vertical_pack,
+        vertical_pack: VerticalPack,
         call_key: str,
     ) -> SemanticQAOutput:
         del workflow_run_id, draft, claims, assets, vertical_pack, call_key
@@ -207,7 +208,7 @@ def _create_subject(
         return draft.id
 
 
-def _codes(result) -> set[str]:
+def _codes(result: EditorialQAResult) -> set[str]:
     return {finding.code for finding in result.findings}
 
 
