@@ -41,6 +41,10 @@ class PostizAdapter:
         idempotency_key: str,
     ) -> DistributionReceipt:
         scheduled_at = variant.scheduled_at or datetime.now(UTC)
+        post_settings: dict[str, object] = {
+            "__type": variant.channel,
+            **variant.settings,
+        }
         payload: dict[str, object] = {
             "type": "schedule",
             "date": scheduled_at.isoformat().replace("+00:00", "Z"),
@@ -58,10 +62,7 @@ class PostizAdapter:
                             ],
                         }
                     ],
-                    "settings": {
-                        "__type": variant.channel,
-                        **variant.settings,
-                    },
+                    "settings": post_settings,
                 }
             ],
         }
