@@ -237,7 +237,7 @@ function App() {
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRuns = useCallback(async (activeFilters: Filters = filters) => {
+  const loadRuns = useCallback(async (activeFilters: Filters) => {
     setLoadingRuns(true);
     setError(null);
     const params = new URLSearchParams();
@@ -269,7 +269,7 @@ function App() {
     } finally {
       setLoadingRuns(false);
     }
-  }, [filters]);
+  }, []);
 
   const loadDetail = useCallback(async (runId: string) => {
     setLoadingDetail(true);
