@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     posthog_enabled: bool = False
     posthog_project_token: str | None = None
     posthog_host: str = "https://us.i.posthog.com"
+    payload_enabled: bool = False
+    payload_base_url: str | None = None
+    payload_api_token: str | None = None
+    payload_collection: str = "posts"
 
 
 @lru_cache
