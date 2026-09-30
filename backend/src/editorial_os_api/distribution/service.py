@@ -201,12 +201,14 @@ class DistributionService:
             )
             job_id = job.id
             workflow_run_id = job.workflow_run_id
+            owner_key = job.owner_key
+            idempotency_key = job.idempotency_key
 
         try:
             receipt = adapter.deliver(
                 variant,
-                owner_key=self._owner_key(job_id),
-                idempotency_key=self._idempotency_for_job(job_id),
+                owner_key=owner_key,
+                idempotency_key=idempotency_key,
             )
         except DistributionReconciliationRequired as exc:
             self._mark_ambiguous(job_id, str(exc))
@@ -422,14 +424,6 @@ class DistributionService:
             media=tuple(cast(list[str], media_raw)),
             scheduled_at=scheduled_at,
         )
-
-    @staticmethod
-    def _owner_key(job_id: UUID) -> str:
-        return f"editorial-os:distribution:{job_id}"
-
-    @staticmethod
-    def _idempotency_for_job(job_id: UUID) -> str:
-        return f"distribution:{job_id}"
 
     @staticmethod
     def _idempotency_key(
