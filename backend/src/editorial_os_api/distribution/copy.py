@@ -5,7 +5,6 @@ from datetime import datetime
 
 from editorial_os_api.distribution.contracts import ChannelVariant
 
-
 _CHANNEL_LIMITS: dict[str, int] = {
     "x": 280,
     "twitter": 280,
