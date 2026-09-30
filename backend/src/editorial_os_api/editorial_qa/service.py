@@ -8,8 +8,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from editorial_os_api.domain.enums import (
     AssetRightsStatus,
     AuditActorKind,
+    ConfidenceClass,
     QAFindingSeverity,
     QAOutcome,
+    RiskClass,
     WorkflowActionType,
     WorkflowStatus,
 )
@@ -339,8 +341,8 @@ class EditorialQAAgent:
                 review_id=review.id,
                 review_version=review.version,
                 outcome=QAOutcome(review.outcome),
-                confidence_class=subject_confidence(review),
-                risk_class=subject_risk(review),
+                confidence_class=ConfidenceClass(review.confidence_class),
+                risk_class=RiskClass(review.risk_class),
                 human_approval_required=review.human_approval_required,
                 gate_b_ready=review.gate_b_ready,
                 findings=[
@@ -376,14 +378,3 @@ class EditorialQAAgent:
             )
         )
 
-
-def subject_confidence(review: EditorialQAReview):
-    from editorial_os_api.domain.enums import ConfidenceClass
-
-    return ConfidenceClass(review.confidence_class)
-
-
-def subject_risk(review: EditorialQAReview):
-    from editorial_os_api.domain.enums import RiskClass
-
-    return RiskClass(review.risk_class)
