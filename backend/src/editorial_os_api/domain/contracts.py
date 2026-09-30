@@ -290,8 +290,11 @@ class DistributionJobContract(Contract):
 class PerformanceSnapshotContract(Contract):
     id: UUID
     workflow_run_id: UUID
+    topic_candidate_id: UUID | None = None
     publication_id: UUID | None = None
     distribution_job_id: UUID | None = None
+    provider: str = "legacy"
+    event_key: str | None = None
     captured_at: datetime
     metrics: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
 
