@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -29,12 +30,12 @@ def _service() -> OperatorConsoleService:
 @router.get("/runs", response_model=list[OperatorRunSummary])
 def list_runs(
     vertical: str | None = None,
-    run_status: WorkflowStatus | None = Query(default=None, alias="status"),
+    run_status: Annotated[WorkflowStatus | None, Query(alias="status")] = None,
     risk: str | None = None,
     topic_decision: str | None = None,
     updated_after: datetime | None = None,
     updated_before: datetime | None = None,
-    limit: int = Query(default=50, ge=1, le=100),
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[OperatorRunSummary]:
     return _service().list_runs(
         vertical=vertical,
