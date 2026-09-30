@@ -92,3 +92,33 @@ Concurrency granularity must match mutation ownership: item-level locks are insu
 
 **RAIDER impact**  
 Strengthens Idempotent, Durable and Retroactive behavior for greenfield bootstrap under real event bursts.
+
+
+### 2026-09-30 — Remote social delivery cannot treat every timeout as a normal retry
+
+**Category**  
+Architecture / reliability / automation
+
+**Context**  
+Issue #14 adds Postiz-backed social distribution with retry-safe owned jobs.
+
+**Symptom / near miss**  
+A naive retry policy would re-send a social mutation whenever the HTTP client timed out or received an ambiguous server failure.
+
+**Impact**  
+The canonical article would remain safe, but the same social post could be published twice because a provider can accept a request even when the client never receives the success receipt.
+
+**Root cause**  
+Local idempotency protects database rows, not an external provider that does not document a matching idempotency guarantee for the mutation.
+
+**Resolution**  
+Distribution jobs now enter `DISPATCHING` before the remote mutation. Explicit pre-delivery rejection can become `FAILED_RETRYABLE`; ambiguous outcomes remain `DISPATCHING` and require reconciliation before another mutation.
+
+**Prevention**  
+Every new remote mutation adapter must classify failures as safe-to-retry, terminal, or ambiguous. Ambiguous mutations fail closed and must not be automatically replayed.
+
+**Generalized lesson**  
+Exactly-once behavior across an external API is a protocol property, not something a local unique constraint can magically provide.
+
+**RAIDER impact**  
+Strengthens Idempotent, Durable and Engineering-grade remote mutation rules.

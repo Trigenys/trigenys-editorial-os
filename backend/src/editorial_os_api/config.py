@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     payload_base_url: str | None = None
     payload_api_token: str | None = None
     payload_collection: str = "posts"
+    postiz_enabled: bool = False
+    postiz_api_key: str | None = None
+    postiz_base_url: str = "https://api.postiz.com/public/v1"
+    n8n_enabled: bool = False
+    n8n_webhook_url: str | None = None
+    n8n_bearer_token: str | None = None
+    remotion_enabled: bool = False
 
 
 @lru_cache
