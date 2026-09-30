@@ -6,6 +6,7 @@ from editorial_os_api.domain.enums import (
     AssetManifestStatus,
     AssetRightsStatus,
     ClaimSupportStatus,
+    ConfidenceClass,
     QAFindingSeverity,
     RiskClass,
 )
@@ -356,7 +357,7 @@ def _contradiction_severity(risk_class: RiskClass) -> QAFindingSeverity:
 def _required_confidence(
     risk_class: RiskClass,
     policy: EditorialQAPolicy,
-):
+) -> ConfidenceClass:
     if risk_class in {RiskClass.R2, RiskClass.R3}:
         return policy.sensitive_min_confidence
     return policy.min_pass_confidence
