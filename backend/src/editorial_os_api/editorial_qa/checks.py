@@ -104,7 +104,7 @@ def deterministic_findings(
             findings.append(
                 _finding(
                     "MATERIAL_CLAIM_CONTESTED",
-                    QAFindingSeverity.ERROR,
+                    _contradiction_severity(subject.risk_class),
                     "contradiction",
                     "Material claim has contradictory evidence and needs revision.",
                     claim_id=claim.id,
@@ -340,3 +340,9 @@ def _finding(
         policy_rule=rule,
         metadata=metadata or {},
     )
+
+
+def _contradiction_severity(risk_class: RiskClass) -> QAFindingSeverity:
+    if risk_class in {RiskClass.R2, RiskClass.R3}:
+        return QAFindingSeverity.BLOCKER
+    return QAFindingSeverity.ERROR
