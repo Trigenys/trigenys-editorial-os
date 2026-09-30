@@ -69,10 +69,21 @@ class DistributionJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class PerformanceSnapshot(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "performance_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "workflow_run_id",
+            "event_key",
+            name="performance_snapshot_event",
+        ),
+    )
 
     workflow_run_id: Mapped[UUID] = mapped_column(
         ForeignKey("workflow_runs.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    topic_candidate_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("topic_candidates.id", ondelete="SET NULL"),
         index=True,
     )
     publication_id: Mapped[UUID | None] = mapped_column(
@@ -83,5 +94,12 @@ class PerformanceSnapshot(UUIDPrimaryKeyMixin, Base):
         ForeignKey("distribution_jobs.id", ondelete="SET NULL"),
         index=True,
     )
+    provider: Mapped[str] = mapped_column(
+        String(80),
+        default="legacy",
+        server_default="legacy",
+        nullable=False,
+    )
+    event_key: Mapped[str | None] = mapped_column(String(255), index=True)
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     metrics: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
