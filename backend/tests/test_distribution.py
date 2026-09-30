@@ -368,7 +368,7 @@ def test_postiz_adapter_uses_public_posts_contract_and_stable_headers() -> None:
 
 
 def test_distribution_integrations_are_off_by_default() -> None:
-    settings = Settings(_env_file=None)
+    settings = Settings()
     assert settings.postiz_enabled is False
     assert settings.n8n_enabled is False
     assert settings.remotion_enabled is False
