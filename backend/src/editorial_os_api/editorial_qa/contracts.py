@@ -33,6 +33,7 @@ class QAClaimContext(QAModel):
     stale: bool = False
     contested: bool = False
     supporting_evidence_ids: list[UUID] = Field(default_factory=list)
+    refuting_evidence_ids: list[UUID] = Field(default_factory=list)
 
 
 class QAEvidenceContext(QAModel):
