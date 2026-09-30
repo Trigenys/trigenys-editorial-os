@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from editorial_os_api.distribution.contracts import ChannelVariant
 
@@ -34,10 +35,9 @@ class ChannelCopyGenerator:
         *,
         channel: str,
         integration_id: str,
-        scheduled_at: object | None = None,
+        scheduled_at: datetime | None = None,
         settings: dict[str, object] | None = None,
     ) -> ChannelVariant:
-        del scheduled_at
         normalized = channel.strip().lower()
         limit = _CHANNEL_LIMITS.get(normalized, 2000)
 
@@ -53,6 +53,7 @@ class ChannelCopyGenerator:
             integration_id=integration_id,
             content=content,
             settings=dict(settings or {}),
+            scheduled_at=scheduled_at,
         )
 
 
