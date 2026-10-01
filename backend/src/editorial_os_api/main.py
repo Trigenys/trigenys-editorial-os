@@ -10,6 +10,7 @@ from editorial_os_api.db import check_database
 from editorial_os_api.observability.factory import build_observability
 from editorial_os_api.observability.http import CorrelationMiddleware
 from editorial_os_api.observability.logging import configure_structured_logging
+from editorial_os_api.operator_console import router as operator_router
 
 
 class HealthResponse(BaseModel):
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     )
     application.state.observability = observability
     application.add_middleware(CorrelationMiddleware)
+    application.include_router(operator_router)
 
     @application.get("/health", response_model=HealthResponse, tags=["system"])
     def health() -> HealthResponse:
