@@ -14,10 +14,82 @@ Parameters:
     Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
 
 Resources:
+  StagingVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: trigenys-editorial-os-staging-vpc
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+  StagingInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: trigenys-editorial-os-staging-igw
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+  StagingInternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref StagingInternetGateway
+      VpcId: !Ref StagingVpc
+
+  StagingPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StagingVpc
+      CidrBlock: 10.42.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: trigenys-editorial-os-staging-public
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+  StagingRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref StagingVpc
+      Tags:
+        - Key: Name
+          Value: trigenys-editorial-os-staging-public
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+  StagingDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: StagingInternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref StagingRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref StagingInternetGateway
+
+  StagingRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref StagingRouteTable
+      SubnetId: !Ref StagingPublicSubnet
+
   StagingSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Editorial OS staging - no inbound access; use SSM port forwarding.
+      VpcId: !Ref StagingVpc
       SecurityGroupEgress:
         - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
@@ -73,8 +145,13 @@ Resources:
       ImageId: !Ref UbuntuAmiId
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref StagingInstanceProfile
-      SecurityGroupIds:
-        - !GetAtt StagingSecurityGroup.GroupId
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref StagingSecurityGroup
+          SubnetId: !Ref StagingPublicSubnet
       MetadataOptions:
         HttpEndpoint: enabled
         HttpTokens: required
@@ -87,7 +164,7 @@ Resources:
             VolumeSize: 20
             VolumeType: gp3
       UserData:
-        Fn::Base64: !Sub |
+        Fn::Base64: |
           #!/usr/bin/env bash
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
@@ -115,3 +192,9 @@ Outputs:
   PrivateIp:
     Description: Private address for diagnostics.
     Value: !GetAtt StagingInstance.PrivateIp
+  PublicIp:
+    Description: Ephemeral outbound-only public address; no inbound security-group rules exist.
+    Value: !GetAtt StagingInstance.PublicIp
+  VpcId:
+    Description: Dedicated staging VPC.
+    Value: !Ref StagingVpc

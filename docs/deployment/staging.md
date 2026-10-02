@@ -41,14 +41,27 @@ STAGING_STACK_NAME=trigenys-editorial-os-staging
 STAGING_DEPLOY_ENABLED=false
 ```
 
-Create or reuse the GitHub environment named `staging` and set these **environment-scoped variables**:
+The Atelier Maître GitHub role must **not** be reused here. Its OIDC trust is repository-scoped and correctly rejected this repository.
 
-```text
-AWS_CLOUDFORMATION_ROLE_ARN=<existing Trigenys CloudFormation execution role ARN>
-AWS_DEPLOY_ROLE_ARN=<existing Trigenys deployment OIDC role ARN>
+Bootstrap dedicated roles once from an authenticated AWS shell:
+
+```bash
+AWS_REGION=eu-west-3 ./scripts/staging/bootstrap_aws_oidc.sh
 ```
 
-The workflows deliberately reuse the existing Trigenys AWS role split: GitHub OIDC authenticates as the deployment role, while `aws cloudformation deploy --role-arn` delegates stack execution to the CloudFormation role. This matches the proven Atelier Maître pattern and avoids requiring a second GitHub OIDC trust on the CloudFormation execution role.
+The bootstrap stack is `trigenys-editorial-os-github-oidc`. It creates two dedicated roles:
+
+- `trigenys-editorial-os-github-actions-role`, trusted only for the GitHub OIDC subject `repo:Trigenys/trigenys-editorial-os:environment:staging`;
+- `trigenys-editorial-os-cloudformation-execution-role`, assumed only by CloudFormation for the staging infrastructure stack.
+
+Create or reuse the GitHub environment named `staging` and copy the bootstrap outputs into these **environment-scoped variables**:
+
+```text
+AWS_DEPLOY_ROLE_ARN=<GitHubActionsRoleArn output>
+AWS_CLOUDFORMATION_ROLE_ARN=<CloudFormationExecutionRoleArn output>
+```
+
+This preserves the proven OIDC → deployment role → CloudFormation execution-role split without coupling Editorial OS to another repository's IAM trust.
 
 Keep the repository-level `STAGING_DEPLOY_ENABLED=false` until the host and runtime parameters are ready. Manual deploys remain available. After the first successful deployment, set it to `true`. Automatic staging deploys then run only after the `CI` workflow has completed successfully on `main`, and only when AppFactory impact analysis reports a web, API or staging surface change. Build/impact jobs intentionally do not enter the `staging` environment; only infrastructure/deployment jobs receive its scoped AWS role variables.
 
@@ -62,11 +75,12 @@ Actions → Provision staging infrastructure → Run workflow
 
 The workflow applies `infra/aws/staging.yml`, which creates:
 
-- one small Ubuntu 24.04 EC2 instance (default `t3.micro`);
+- a dedicated `10.42.0.0/16` VPC, public subnet and internet route for outbound package/image access;
+- a security group with **no inbound rules**;
+- one small Ubuntu 24.04 EC2 instance (default `t3.micro`) with an ephemeral public address used only for outbound traffic;
 - a 20 GB encrypted gp3 root volume;
 - an instance profile with SSM core permissions;
 - read-only access to the Editorial OS staging Parameter Store prefix;
-- a security group with outbound access only.
 
 The host bootstrap installs Docker, Docker Compose, Git, AWS CLI, curl and jq.
 
