@@ -118,14 +118,13 @@ class PilotMetricsService:
             }
             for item in actions
         )
-        cost = sum(
-            (
+        cost = Decimal("0")
+        for item in usages:
+            cost += (
                 item.actual_cost_usd
                 if item.actual_cost_usd is not None
                 else item.reserved_cost_usd
             )
-            for item in usages
-        , Decimal("0"))
         unsupported_claims = sum(
             item.support_status == "UNSUPPORTED"
             for item in claims
