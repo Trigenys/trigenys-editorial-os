@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import sys
 
-import httpx
-
 from editorial_os_api.config import get_settings
+import httpx
 
 
 def main() -> int:
