@@ -39,9 +39,10 @@ docker compose -f compose.staging.yml pull migrate api web
 docker compose -f compose.staging.yml run --rm migrate
 docker compose -f compose.staging.yml run --rm api \
   python /app/scripts/insight_pilot.py seed-sources
+docker compose -f compose.staging.yml run --rm api \
+  python /app/scripts/staging/check_payload.py
 docker compose -f compose.staging.yml up -d --remove-orphans api web
 
 BASE_URL="http://127.0.0.1:$STAGING_WEB_PORT" ./smoke.sh
-python /app/does-not-exist 2>/dev/null || true
 
 printf 'Staging revision deployed successfully.\n'
