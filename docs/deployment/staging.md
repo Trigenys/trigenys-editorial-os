@@ -45,7 +45,7 @@ STAGING_DEPLOY_ENABLED=false
 
 The workflows deliberately reuse the existing Trigenys OIDC split: infrastructure mutations use the CloudFormation role, while deployments use the deployment role.
 
-Keep `STAGING_DEPLOY_ENABLED=false` until the host and runtime parameters are ready. Manual deploys remain available. After the first successful deployment, set it to `true` to deploy every green merge to `main`.
+Keep `STAGING_DEPLOY_ENABLED=false` until the host and runtime parameters are ready. Manual deploys remain available. After the first successful deployment, set it to `true`. Automatic staging deploys then run only after the `CI` workflow has completed successfully on `main`, and only when AppFactory impact analysis reports a web, API or staging surface change.
 
 ## Provision the host
 
@@ -102,7 +102,9 @@ The host renders a mode-0600 `.env`; neither the GitHub workflow nor the browser
 
 ## Deploy sequence
 
-`.github/workflows/deploy-staging.yml` performs:
+`.github/workflows/deploy-staging.yml` is chained from the completed `CI` workflow. A failed CI can never start an automatic staging deploy. After CI succeeds, AppFactory Impact-Aware CI evaluates the exact validated commit range; documentation-only changes produce no staging build/deploy.
+
+For an impacted green revision, the workflow performs:
 
 ```text
 build API/web
@@ -121,7 +123,7 @@ build API/web
 → smoke /health/ready
 ```
 
-The deployment is retry-safe. A second deployment of the same commit does not create a new schema migration, a duplicate pilot source, or a CMS document.
+The deployment is retry-safe. A second deployment of the same commit does not create a new schema migration, a duplicate pilot source, or a CMS document. Image tags and the SSM checkout use the exact SHA that CI validated, rather than the deployment workflow's own event SHA.
 
 The API health response must report:
 

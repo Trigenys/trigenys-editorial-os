@@ -152,3 +152,33 @@ When a tool can deterministically produce the correct transformation, use the to
 
 **RAIDER impact**  
 Strengthens Engineering-grade and Retroactive behavior: convert repeated CI friction into an explicit repair rule so the same class of failure costs one iteration, not several.
+
+
+### 2026-10-02 — A separate push-triggered deploy could race ahead of CI
+
+**Category**  
+CI-CD / release / infrastructure
+
+**Context**  
+Issue #35 introduced a standalone staging deployment workflow beside the repository CI workflow.
+
+**Symptom / near miss**  
+The first design listened directly to pushes on `main`. Once automatic staging deployment was enabled, GitHub could start CI and deployment concurrently for the same commit.
+
+**Impact**  
+A revision could theoretically reach staging before its API, web and staging-artifact checks had completed. Documentation-only merges could also rebuild and redeploy unchanged product surfaces.
+
+**Root cause**  
+Deployment eligibility was tied to the branch event instead of the validated revision and its change-impact result.
+
+**Resolution**  
+Automatic staging deployment now listens to successful completion of the `CI` workflow, resolves the exact CI-validated SHA, runs AppFactory impact analysis for that commit range, and only builds/deploys when web, API or staging surfaces are affected. Manual deploy remains an intentional full validation path.
+
+**Prevention**  
+Deployment workflows must consume a validated immutable revision, not merely observe the same source-control event as CI. Expensive delivery work must also use the repository impact map so no-op changes stay no-op.
+
+**Generalized lesson**  
+A deployment workflow running “after a push” is not equivalent to a deployment workflow running “after validation.” Event ordering is part of the release safety model.
+
+**RAIDER impact**  
+Strengthens Durable/Non-regressive and Engineering-grade behavior, and applies the RAIDER change-impact rule to deployment rather than only test selection.

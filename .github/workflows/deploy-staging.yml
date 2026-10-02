@@ -1,8 +1,9 @@
 name: Deploy staging
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       action:
@@ -28,25 +29,73 @@ env:
   STAGING_STACK_NAME: ${{ vars.STAGING_STACK_NAME || 'trigenys-editorial-os-staging' }}
 
 jobs:
+  prepare:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'deploy') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       vars.STAGING_DEPLOY_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    outputs:
+      target_sha: ${{ steps.range.outputs.target_sha }}
+      base_sha: ${{ steps.range.outputs.base_sha }}
+    steps:
+      - name: Checkout exact validated revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Resolve validated impact range
+        id: range
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_sha="$(git rev-parse HEAD)"
+          base_sha="$(git rev-parse HEAD^)"
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+
+  impact:
+    needs: prepare
+    uses: EagleFox31/appfactory-project-automation/.github/workflows/reusable-impact-analysis.yml@f1917b748b3298e1ebd74613463863c76b41c36d
+    with:
+      appfactory_ref: f1917b748b3298e1ebd74613463863c76b41c36d
+      config_path: .github/appfactory-impact.json
+      mode: ${{ github.event_name == 'workflow_dispatch' && 'all' || 'auto' }}
+      base_sha: ${{ needs.prepare.outputs.base_sha }}
+      head_sha: ${{ needs.prepare.outputs.target_sha }}
+
   build:
-    if: github.event_name == 'workflow_dispatch' || vars.STAGING_DEPLOY_ENABLED == 'true'
+    needs: [prepare, impact]
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(fromJSON(needs.impact.outputs.gates), 'web') ||
+      contains(fromJSON(needs.impact.outputs.gates), 'api') ||
+      contains(fromJSON(needs.impact.outputs.gates), 'staging-artifacts')
     runs-on: ubuntu-latest
     environment: staging
     outputs:
       api_image: ${{ steps.images.outputs.api_image }}
       web_image: ${{ steps.images.outputs.web_image }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout exact validated revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.target_sha }}
 
       - name: Resolve immutable GHCR image names
         id: images
         shell: bash
+        env:
+          TARGET_SHA: ${{ needs.prepare.outputs.target_sha }}
         run: |
           set -euo pipefail
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           registry="ghcr.io/$owner"
-          echo "api_image=$registry/trigenys-editorial-os-api:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-          echo "web_image=$registry/trigenys-editorial-os-web:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "api_image=$registry/trigenys-editorial-os-api:$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          echo "web_image=$registry/trigenys-editorial-os-web:$TARGET_SHA" >> "$GITHUB_OUTPUT"
           echo "api_latest=$registry/trigenys-editorial-os-api:staging-latest" >> "$GITHUB_OUTPUT"
           echo "web_latest=$registry/trigenys-editorial-os-web:staging-latest" >> "$GITHUB_OUTPUT"
 
@@ -79,8 +128,7 @@ jobs:
           docker push "${{ steps.images.outputs.web_latest }}"
 
   deploy:
-    if: (github.event_name == 'workflow_dispatch' && inputs.action == 'deploy') || (github.event_name == 'push' && vars.STAGING_DEPLOY_ENABLED == 'true')
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -116,13 +164,14 @@ jobs:
           INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
           API_IMAGE: ${{ needs.build.outputs.api_image }}
           WEB_IMAGE: ${{ needs.build.outputs.web_image }}
+          TARGET_SHA: ${{ needs.prepare.outputs.target_sha }}
           REPOSITORY_URL: https://github.com/Trigenys/trigenys-editorial-os.git
         run: |
           set -euo pipefail
 
           jq -n \
             --arg repository "$REPOSITORY_URL" \
-            --arg sha "$GITHUB_SHA" \
+            --arg sha "$TARGET_SHA" \
             --arg region "$AWS_REGION" \
             --arg api_image "$API_IMAGE" \
             --arg web_image "$WEB_IMAGE" \
@@ -149,7 +198,7 @@ jobs:
             aws ssm send-command \
               --instance-ids "$INSTANCE_ID" \
               --document-name AWS-RunShellScript \
-              --comment "Deploy Editorial OS staging $GITHUB_SHA" \
+              --comment "Deploy Editorial OS staging $TARGET_SHA" \
               --parameters file://ssm-parameters.json \
               --query 'Command.CommandId' \
               --output text
@@ -175,6 +224,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     steps:
+      - name: Validate AWS deploy role
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          test -n "$AWS_DEPLOY_ROLE_ARN" || {
+            echo "Missing staging variable AWS_DEPLOY_ROLE_ARN" >&2
+            exit 1
+          }
+
       - uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
