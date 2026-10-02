@@ -8,6 +8,7 @@ RUN groupadd --system app && useradd --system --gid app --home /app app
 
 WORKDIR /app
 COPY backend /app/backend
+COPY scripts /app/scripts
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install /app/backend
