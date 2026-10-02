@@ -118,6 +118,12 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              - Sid: ValidateTemplates
+                Effect: Allow
+                Action:
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ValidateTemplate
+                Resource: "*"
               - Sid: ManageApplicationStack
                 Effect: Allow
                 Action:
@@ -130,9 +136,7 @@ Resources:
                   - cloudformation:DescribeStacks
                   - cloudformation:ExecuteChangeSet
                   - cloudformation:GetTemplate
-                  - cloudformation:GetTemplateSummary
                   - cloudformation:UpdateStack
-                  - cloudformation:ValidateTemplate
                 Resource:
                   - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ApplicationStackName}/*
               - Sid: PassDedicatedExecutionRole
@@ -144,13 +148,22 @@ Resources:
                 Condition:
                   StringEquals:
                     iam:PassedToService: cloudformation.amazonaws.com
-              - Sid: SendCommandsToStagingHost
+              - Sid: UseRunShellScriptDocument
                 Effect: Allow
                 Action:
                   - ssm:SendCommand
                 Resource:
                   - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript
+              - Sid: SendCommandsToStagingHost
+                Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                Resource:
                   - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                Condition:
+                  StringEquals:
+                    ssm:resourceTag/Project: trigenys-editorial-os
+                    ssm:resourceTag/Environment: staging
               - Sid: ReadCommandAndManagedInstanceState
                 Effect: Allow
                 Action:
