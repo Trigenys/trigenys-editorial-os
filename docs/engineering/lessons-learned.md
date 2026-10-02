@@ -182,3 +182,33 @@ A deployment workflow running “after a push” is not equivalent to a deployme
 
 **RAIDER impact**  
 Strengthens Durable/Non-regressive and Engineering-grade behavior, and applies the RAIDER change-impact rule to deployment rather than only test selection.
+
+
+### 2026-10-02 — Reusing another repository's GitHub OIDC role failed closed
+
+**Category**  
+Security / infrastructure / CI-CD
+
+**Context**  
+Issue #35 needed an AWS identity for the Editorial OS staging deployment. Atelier Maître already had a working GitHub Actions OIDC role in the same AWS account.
+
+**Symptom / near miss**  
+A read-only probe from `Trigenys/trigenys-editorial-os` attempted to assume `atelier-maitre-github-actions-role` and AWS rejected it with `Not authorized to perform sts:AssumeRoleWithWebIdentity`.
+
+**Impact**  
+No infrastructure was created and no trust was broadened. The staging bootstrap stopped before any billable AWS resource was provisioned.
+
+**Root cause**  
+GitHub OIDC trust is an identity boundary, not a reusable account credential. The Atelier Maître role was deliberately scoped to its own repository, so a different repository could not assume it.
+
+**Resolution**  
+Editorial OS now owns a dedicated bootstrap template that creates a repository/environment-scoped GitHub OIDC role plus a dedicated CloudFormation execution role. The temporary cross-repository probe was removed.
+
+**Prevention**  
+Never assume an existing GitHub OIDC role is portable between repositories. Verify its subject boundary first; prefer a dedicated role whose trust names the exact repository and protected environment.
+
+**Generalized lesson**  
+Shared cloud accounts do not imply shared workload identities. Reuse the deployment pattern, not another workload's trust principal.
+
+**RAIDER impact**  
+Strengthens Agnostic, Durable and Engineering-grade infrastructure boundaries: portable architecture, isolated credentials, and fail-closed trust.
