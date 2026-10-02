@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     payload_base_url: str | None = None
     payload_api_token: str | None = None
     payload_collection: str = "posts"
+    payload_auth_mode: Literal["bearer", "api_key"] = "bearer"
+    payload_auth_collection: str = "users"
     postiz_enabled: bool = False
     postiz_api_key: str | None = None
     postiz_base_url: str = "https://api.postiz.com/public/v1"
