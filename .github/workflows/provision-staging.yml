@@ -45,10 +45,12 @@ jobs:
             exit 1
           }
 
-      - uses: aws-actions/configure-aws-credentials@v5
+      - name: Authenticate to AWS with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{ vars.AWS_CLOUDFORMATION_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          role-session-name: editorial-os-staging-infra
 
       - name: Deploy staging CloudFormation stack
         run: |
@@ -56,6 +58,7 @@ jobs:
           aws cloudformation deploy \
             --stack-name "$STAGING_STACK_NAME" \
             --template-file infra/aws/staging.yml \
+            --role-arn "${{ vars.AWS_CLOUDFORMATION_ROLE_ARN }}" \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides "InstanceType=${{ inputs.instance_type }}"
@@ -71,11 +74,6 @@ jobs:
           )"
           test -n "$instance_id" && test "$instance_id" != "None"
           echo "instance_id=$instance_id" >> "$GITHUB_OUTPUT"
-
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Wait for SSM registration
         env:
