@@ -122,3 +122,33 @@ Exactly-once behavior across an external API is a protocol property, not somethi
 
 **RAIDER impact**  
 Strengthens Idempotent, Durable and Engineering-grade remote mutation rules.
+
+
+### 2026-10-02 — Repeated manual fixes for Ruff import ordering wasted CI cycles
+
+**Category**  
+CI-CD / testing / process
+
+**Context**  
+Issue #35 added staging deployment utilities, including a new Python script under `scripts/staging/`.
+
+**Symptom / near miss**  
+The same Ruff `I001` import-ordering failure was fixed manually more than once, but each edit guessed the formatter's grouping instead of reproducing Ruff's exact fix locally first.
+
+**Impact**  
+The code change itself was trivial, but several CI runs were wasted and progress on the staging deployment was delayed.
+
+**Root cause**  
+The repair loop treated a deterministic formatter/linter failure as a code-review judgment call. The authoritative tool output was available, but the workflow did not require applying or previewing Ruff's own fix before pushing another commit.
+
+**Resolution**  
+The import block was changed to the exact ordering Ruff accepts and CI passed.
+
+**Prevention**  
+For deterministic lint failures, do not hand-guess formatting. Run the exact repository command locally first. For Ruff `I001`, use `python -m ruff check <path> --fix` on the working tree, inspect the diff, then rerun the full CI lint command before committing. If local execution is unavailable, derive the exact edit from Ruff's suggested diff and verify once before pushing.
+
+**Generalized lesson**  
+When a tool can deterministically produce the correct transformation, use the tool as the source of truth instead of iterating by intuition.
+
+**RAIDER impact**  
+Strengthens Engineering-grade and Retroactive behavior: convert repeated CI friction into an explicit repair rule so the same class of failure costs one iteration, not several.

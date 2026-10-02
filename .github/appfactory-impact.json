@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "fallback": "all",
+  "ignorePaths": [
+    "README.md",
+    "docs/**",
+    "AGENTS.md",
+    "BACKLOG.md",
+    ".github/project-config.json",
+    ".github/workflows/project-automation.yml"
+  ],
+  "surfaces": {
+    "web": {
+      "paths": [
+        "src/**",
+        "index.html",
+        "package.json",
+        "tsconfig.json",
+        "vite.config.ts"
+      ],
+      "gates": ["web"]
+    },
+    "api": {
+      "paths": [
+        "backend/**",
+        "scripts/*.py"
+      ],
+      "gates": ["api"]
+    },
+    "staging": {
+      "paths": [
+        "deploy/**",
+        "infra/**",
+        "scripts/staging/**",
+        ".github/workflows/deploy-staging.yml",
+        ".github/workflows/provision-staging.yml"
+      ],
+      "gates": ["staging-artifacts"],
+      "dependsOn": ["web", "api"]
+    },
+    "ci-policy": {
+      "paths": [
+        ".github/workflows/ci.yml",
+        ".github/appfactory-impact.json"
+      ],
+      "gates": ["web", "api", "staging-artifacts"]
+    }
+  }
+}
