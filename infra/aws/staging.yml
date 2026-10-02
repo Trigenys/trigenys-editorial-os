@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Trigenys Editorial OS staging host managed through AWS Systems Manager.
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t3.micro
+      - t3.small
+    Description: Small x86 staging instance for the pilot.
+  UbuntuAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+
+Resources:
+  StagingSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Editorial OS staging - no inbound access; use SSM port forwarding.
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: trigenys-editorial-os-staging
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+  StagingInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub trigenys-editorial-os-staging-instance-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ReadEditorialOSStagingParameters
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/trigenys/editorial-os/staging/*
+      Tags:
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+  StagingInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref StagingInstanceRole
+
+  StagingInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref StagingInstanceProfile
+      SecurityGroupIds:
+        - !GetAtt StagingSecurityGroup.GroupId
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+        InstanceMetadataTags: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            DeleteOnTermination: true
+            Encrypted: true
+            VolumeSize: 20
+            VolumeType: gp3
+      UserData:
+        Fn::Base64: !Sub |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y docker.io docker-compose-v2 git awscli jq curl
+          systemctl enable --now docker
+          if command -v snap >/dev/null 2>&1; then
+            snap start amazon-ssm-agent || true
+          fi
+          install -d -m 0755 /opt/trigenys/editorial-os
+          docker version
+          docker compose version
+      Tags:
+        - Key: Name
+          Value: trigenys-editorial-os-staging
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+Outputs:
+  InstanceId:
+    Description: SSM managed staging host.
+    Value: !Ref StagingInstance
+  PrivateIp:
+    Description: Private address for diagnostics.
+    Value: !GetAtt StagingInstance.PrivateIp

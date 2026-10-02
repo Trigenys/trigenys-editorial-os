@@ -160,6 +160,8 @@ type Filters = {
   updatedBefore: string;
 };
 
+const deploymentLabel = import.meta.env.VITE_DEPLOYMENT_LABEL ?? "local";
+
 const initialFilters: Filters = {
   vertical: "",
   status: "",
@@ -425,6 +427,7 @@ function App() {
           <div>
             <p className="eyebrow">Trigenys Editorial OS</p>
             <h1>Control room</h1>
+            <span className="deployment-badge">{deploymentLabel}</span>
           </div>
           <button className="ghost-button" type="button" onClick={() => void loadRuns(filters)}>
             Refresh

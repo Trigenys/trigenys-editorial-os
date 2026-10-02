@@ -1,0 +1,212 @@
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Staging action
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: editorial-os-staging
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-3' }}
+  STAGING_STACK_NAME: ${{ vars.STAGING_STACK_NAME || 'trigenys-editorial-os-staging' }}
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || vars.STAGING_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      api_image: ${{ steps.images.outputs.api_image }}
+      web_image: ${{ steps.images.outputs.web_image }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve immutable GHCR image names
+        id: images
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          registry="ghcr.io/$owner"
+          echo "api_image=$registry/trigenys-editorial-os-api:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "web_image=$registry/trigenys-editorial-os-web:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "api_latest=$registry/trigenys-editorial-os-api:staging-latest" >> "$GITHUB_OUTPUT"
+          echo "web_latest=$registry/trigenys-editorial-os-web:staging-latest" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        run: |
+          docker build \
+            --file deploy/api.Dockerfile \
+            --tag "${{ steps.images.outputs.api_image }}" \
+            --tag "${{ steps.images.outputs.api_latest }}" \
+            .
+          docker push "${{ steps.images.outputs.api_image }}"
+          docker push "${{ steps.images.outputs.api_latest }}"
+
+      - name: Build and push web image
+        run: |
+          docker build \
+            --file deploy/web.Dockerfile \
+            --build-arg VITE_DEPLOYMENT_LABEL=staging \
+            --tag "${{ steps.images.outputs.web_image }}" \
+            --tag "${{ steps.images.outputs.web_latest }}" \
+            .
+          docker push "${{ steps.images.outputs.web_image }}"
+          docker push "${{ steps.images.outputs.web_latest }}"
+
+  deploy:
+    if: (github.event_name == 'workflow_dispatch' && inputs.action == 'deploy') || (github.event_name == 'push' && vars.STAGING_DEPLOY_ENABLED == 'true')
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Validate AWS deploy role
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          test -n "$AWS_DEPLOY_ROLE_ARN" || {
+            echo "Missing staging variable AWS_DEPLOY_ROLE_ARN" >&2
+            exit 1
+          }
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve SSM managed staging host
+        id: target
+        run: |
+          set -euo pipefail
+          instance_id="$(
+            aws cloudformation describe-stacks \
+              --stack-name "$STAGING_STACK_NAME" \
+              --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue | [0]" \
+              --output text
+          )"
+          test -n "$instance_id" && test "$instance_id" != "None"
+          echo "instance_id=$instance_id" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy immutable revision through SSM
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+          API_IMAGE: ${{ needs.build.outputs.api_image }}
+          WEB_IMAGE: ${{ needs.build.outputs.web_image }}
+          REPOSITORY_URL: https://github.com/Trigenys/trigenys-editorial-os.git
+        run: |
+          set -euo pipefail
+
+          jq -n \
+            --arg repository "$REPOSITORY_URL" \
+            --arg sha "$GITHUB_SHA" \
+            --arg region "$AWS_REGION" \
+            --arg api_image "$API_IMAGE" \
+            --arg web_image "$WEB_IMAGE" \
+            '{
+              commands: [
+                "set -euo pipefail",
+                "install -d -m 0755 /opt/trigenys/editorial-os",
+                "if [ ! -d /opt/trigenys/editorial-os/repo/.git ]; then git clone " + $repository + " /opt/trigenys/editorial-os/repo; fi",
+                "git -C /opt/trigenys/editorial-os/repo fetch --depth=1 origin " + $sha,
+                "git -C /opt/trigenys/editorial-os/repo checkout --detach " + $sha,
+                "install -d -m 0750 /opt/trigenys/editorial-os/staging",
+                "cp /opt/trigenys/editorial-os/repo/deploy/compose.staging.yml /opt/trigenys/editorial-os/staging/compose.staging.yml",
+                "cp /opt/trigenys/editorial-os/repo/scripts/staging/refresh_env_from_ssm.sh /opt/trigenys/editorial-os/staging/refresh_env_from_ssm.sh",
+                "cp /opt/trigenys/editorial-os/repo/scripts/staging/smoke.sh /opt/trigenys/editorial-os/staging/smoke.sh",
+                "cp /opt/trigenys/editorial-os/repo/scripts/staging/deploy.sh /opt/trigenys/editorial-os/staging/deploy.sh",
+                "cp /opt/trigenys/editorial-os/repo/scripts/staging/rollback.sh /opt/trigenys/editorial-os/staging/rollback.sh",
+                "chmod 0750 /opt/trigenys/editorial-os/staging/*.sh",
+                "cd /opt/trigenys/editorial-os/staging",
+                "AWS_REGION=" + $region + " ./deploy.sh " + $api_image + " " + $web_image
+              ]
+            }' > ssm-parameters.json
+
+          command_id="$(
+            aws ssm send-command \
+              --instance-ids "$INSTANCE_ID" \
+              --document-name AWS-RunShellScript \
+              --comment "Deploy Editorial OS staging $GITHUB_SHA" \
+              --parameters file://ssm-parameters.json \
+              --query 'Command.CommandId' \
+              --output text
+          )"
+
+          if ! aws ssm wait command-executed \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID"; then
+            aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$INSTANCE_ID" \
+              --query '{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}'
+            exit 1
+          fi
+
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID" \
+            --query '{Status:Status,Stdout:StandardOutputContent}'
+
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve staging host
+        id: target
+        run: |
+          instance_id="$(
+            aws cloudformation describe-stacks \
+              --stack-name "$STAGING_STACK_NAME" \
+              --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue | [0]" \
+              --output text
+          )"
+          test -n "$instance_id" && test "$instance_id" != "None"
+          echo "instance_id=$instance_id" >> "$GITHUB_OUTPUT"
+
+      - name: Restore previous staging images
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          parameters='{"commands":["set -euo pipefail","cd /opt/trigenys/editorial-os/staging","AWS_REGION='"$AWS_REGION"' ./rollback.sh"]}'
+          command_id="$(
+            aws ssm send-command \
+              --instance-ids "$INSTANCE_ID" \
+              --document-name AWS-RunShellScript \
+              --comment "Rollback Editorial OS staging" \
+              --parameters "$parameters" \
+              --query 'Command.CommandId' \
+              --output text
+          )"
+          aws ssm wait command-executed \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID"

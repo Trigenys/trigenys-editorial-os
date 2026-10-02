@@ -15,11 +15,12 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Trigenys Editorial OS API"
-    environment: Literal["development", "test", "production"] = "development"
+    environment: Literal["development", "test", "staging", "production"] = "development"
     database_url: str = (
         "postgresql+psycopg://editorial_os:editorial_os@localhost:5432/editorial_os"
     )
     database_echo: bool = False
+    deployment_label: str = "local"
     langfuse_enabled: bool = False
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
@@ -32,6 +33,8 @@ class Settings(BaseSettings):
     payload_base_url: str | None = None
     payload_api_token: str | None = None
     payload_collection: str = "posts"
+    payload_auth_mode: Literal["bearer", "api_key"] = "bearer"
+    payload_auth_collection: str = "users"
     postiz_enabled: bool = False
     postiz_api_key: str | None = None
     postiz_base_url: str = "https://api.postiz.com/public/v1"

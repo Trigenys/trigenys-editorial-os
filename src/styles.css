@@ -167,6 +167,20 @@ h1 {
   letter-spacing: -.04em;
 }
 
+.deployment-badge {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border: 1px solid #d7b765;
+  border-radius: 999px;
+  color: #6c5313;
+  background: #fff4cf;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

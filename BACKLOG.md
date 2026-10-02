@@ -30,14 +30,15 @@ This file mirrors the GitHub Issues and records the intended dependency order. G
 
 ## Pilot
 - #15 Build operator console for queues, evidence, gates, costs and run history. Depends on #4, #12, #13 and #14.
-- #16 Run Trigenys Insight staging vertical end-to-end. Depends on #15.
+- #35 Deploy Editorial OS staging environment and CI/CD. Required to complete #16.
+- #16 Run Trigenys Insight staging vertical end-to-end. Depends on #15 and #35.
 
 ## Release
 - #17 Validate a second materially different vertical consumer. Depends on #16.
 - #18 Security, recovery, load/cost budgets and v0.1 release readiness. Depends on #17, #6, #14 and #13.
 
 ## Critical path
-#1 → #2 → #3 → #4 → #7 → #8 → #9 → #10 → #11/#12 → #13 → #14 → #15 → #16 → #17 → #18
+#1 → #2 → #3 → #4 → #7 → #8 → #9 → #10 → #11/#12 → #13 → #14 → #15 → #35 → #16 → #17 → #18
 
 ## MVP checkpoint
 The MVP is considered demonstrated when a real source signal completes source ingestion → topic approval → research/verification → draft → asset → QA → editorial approval → publication approval → Payload staging/publish → distribution preview, with one auditable workflow run and no duplicate side effects on retry.
