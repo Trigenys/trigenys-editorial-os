@@ -43,7 +43,7 @@ STAGING_STACK_NAME=trigenys-editorial-os-staging
 STAGING_DEPLOY_ENABLED=false
 ```
 
-The workflows deliberately reuse the existing Trigenys OIDC split: infrastructure mutations use the CloudFormation role, while deployments use the deployment role.
+The workflows deliberately reuse the existing Trigenys AWS role split: GitHub OIDC authenticates as the deployment role, while `aws cloudformation deploy --role-arn` delegates stack execution to the CloudFormation role. This matches the proven Atelier Maître pattern and avoids requiring a second GitHub OIDC trust on the CloudFormation execution role.
 
 Keep `STAGING_DEPLOY_ENABLED=false` until the host and runtime parameters are ready. Manual deploys remain available. After the first successful deployment, set it to `true`. Automatic staging deploys then run only after the `CI` workflow has completed successfully on `main`, and only when AppFactory impact analysis reports a web, API or staging surface change.
 
