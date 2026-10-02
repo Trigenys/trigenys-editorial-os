@@ -15,11 +15,12 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Trigenys Editorial OS API"
-    environment: Literal["development", "test", "production"] = "development"
+    environment: Literal["development", "test", "staging", "production"] = "development"
     database_url: str = (
         "postgresql+psycopg://editorial_os:editorial_os@localhost:5432/editorial_os"
     )
     database_echo: bool = False
+    deployment_label: str = "local"
     langfuse_enabled: bool = False
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
