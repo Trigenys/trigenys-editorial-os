@@ -17,9 +17,26 @@ export STAGING_WEB_PORT
 
 cd "$DEPLOY_ROOT"
 
-registry="${API_IMAGE%%/*}"
-aws ecr get-login-password --region "$AWS_REGION" \
-  | docker login --username AWS --password-stdin "$registry" >/dev/null
+: "${SSM_PREFIX:=/trigenys/editorial-os/staging}"
+
+ghcr_token="$(
+  aws ssm get-parameter \
+    --region "$AWS_REGION" \
+    --name "$SSM_PREFIX/ghcr-token" \
+    --with-decryption \
+    --query 'Parameter.Value' \
+    --output text
+)"
+ghcr_user="$(
+  aws ssm get-parameter \
+    --region "$AWS_REGION" \
+    --name "$SSM_PREFIX/ghcr-user" \
+    --with-decryption \
+    --query 'Parameter.Value' \
+    --output text 2>/dev/null || printf 'EagleFox31'
+)"
+printf '%s' "$ghcr_token" | docker login ghcr.io --username "$ghcr_user" --password-stdin >/dev/null
+unset ghcr_token ghcr_user
 
 ./refresh_env_from_ssm.sh
 
