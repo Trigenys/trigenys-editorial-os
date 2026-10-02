@@ -33,19 +33,24 @@ The application expects SQLAlchemy + psycopg. The host secret loader automatical
 
 ## One-time GitHub environment setup
 
-Create or reuse the GitHub environment named `staging` and set these non-secret variables:
+Set these **repository-level Actions variables** so pre-deployment impact analysis can read them without entering the protected staging environment:
 
 ```text
 AWS_REGION=eu-west-3
-AWS_CLOUDFORMATION_ROLE_ARN=<existing Trigenys CloudFormation OIDC role ARN>
-AWS_DEPLOY_ROLE_ARN=<existing Trigenys deployment OIDC role ARN>
 STAGING_STACK_NAME=trigenys-editorial-os-staging
 STAGING_DEPLOY_ENABLED=false
 ```
 
-The workflows deliberately reuse the existing Trigenys OIDC split: infrastructure mutations use the CloudFormation role, while deployments use the deployment role.
+Create or reuse the GitHub environment named `staging` and set these **environment-scoped variables**:
 
-Keep `STAGING_DEPLOY_ENABLED=false` until the host and runtime parameters are ready. Manual deploys remain available. After the first successful deployment, set it to `true`. Automatic staging deploys then run only after the `CI` workflow has completed successfully on `main`, and only when AppFactory impact analysis reports a web, API or staging surface change.
+```text
+AWS_CLOUDFORMATION_ROLE_ARN=<existing Trigenys CloudFormation execution role ARN>
+AWS_DEPLOY_ROLE_ARN=<existing Trigenys deployment OIDC role ARN>
+```
+
+The workflows deliberately reuse the existing Trigenys AWS role split: GitHub OIDC authenticates as the deployment role, while `aws cloudformation deploy --role-arn` delegates stack execution to the CloudFormation role. This matches the proven Atelier Maître pattern and avoids requiring a second GitHub OIDC trust on the CloudFormation execution role.
+
+Keep the repository-level `STAGING_DEPLOY_ENABLED=false` until the host and runtime parameters are ready. Manual deploys remain available. After the first successful deployment, set it to `true`. Automatic staging deploys then run only after the `CI` workflow has completed successfully on `main`, and only when AppFactory impact analysis reports a web, API or staging surface change. Build/impact jobs intentionally do not enter the `staging` environment; only infrastructure/deployment jobs receive its scoped AWS role variables.
 
 ## Provision the host
 

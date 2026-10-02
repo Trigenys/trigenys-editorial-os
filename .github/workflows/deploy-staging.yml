@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       action:
@@ -59,10 +60,11 @@ jobs:
 
   impact:
     needs: prepare
-    uses: EagleFox31/appfactory-project-automation/.github/workflows/reusable-impact-analysis.yml@f1917b748b3298e1ebd74613463863c76b41c36d
+    uses: EagleFox31/appfactory-project-automation/.github/workflows/reusable-impact-analysis.yml@9e351696d594c99059563f93140b492814f00679
     with:
-      appfactory_ref: f1917b748b3298e1ebd74613463863c76b41c36d
+      appfactory_ref: 9e351696d594c99059563f93140b492814f00679
       config_path: .github/appfactory-impact.json
+      checkout_ref: ${{ needs.prepare.outputs.target_sha }}
       mode: ${{ github.event_name == 'workflow_dispatch' && 'all' || 'auto' }}
       base_sha: ${{ needs.prepare.outputs.base_sha }}
       head_sha: ${{ needs.prepare.outputs.target_sha }}
@@ -75,7 +77,6 @@ jobs:
       contains(fromJSON(needs.impact.outputs.gates), 'api') ||
       contains(fromJSON(needs.impact.outputs.gates), 'staging-artifacts')
     runs-on: ubuntu-latest
-    environment: staging
     outputs:
       api_image: ${{ steps.images.outputs.api_image }}
       web_image: ${{ steps.images.outputs.web_image }}
