@@ -1,118 +1,198 @@
 # Editorial OS staging deployment
 
-Issue #35 provides the infrastructure boundary required before the real Trigenys Insight pilot in #16.
+Issue #35 provides the isolated staging runtime required before the real Trigenys Insight pilot in #16.
 
 ## Architecture
 
-The staging runtime uses two immutable containers on one SSM-managed host:
+The staging runtime follows the same deployment shape already used for Trigenys AWS workloads:
 
-- `editorial-os-web`: Nginx + the built React operator console.
-- `editorial-os-api`: FastAPI + Alembic + the pilot utilities.
+```text
+GitHub Actions
+  ├─ build API + web images
+  ├─ push immutable images to GHCR
+  └─ OIDC → AWS → SSM Run Command
+                         ↓
+                   EC2 staging host
+                    ├─ Nginx web
+                    └─ FastAPI API
+                         ↓
+                  PostgreSQL staging
+                         ↓
+                    Payload staging
+```
 
-Nginx is the only public application entry point. Requests under `/api/` are proxied to the private API container. PostgreSQL is external and reached only by the API/migration containers.
+The operator console and API are separate containers. Nginx is the application entry point and proxies `/api/` to the API container over a private Docker network.
 
-The deployment workflow builds both images, stores them in ECR under immutable commit-SHA tags, runs Alembic before the new application revision, seeds the approved Insight source set idempotently, verifies Payload staging with a read-only request, starts the containers, then runs health/readiness smoke tests.
+The EC2 security group has **no inbound rules**. There is no SSH port and no publicly exposed operator console. Human access is through AWS Systems Manager port forwarding.
 
 ## Database
 
-The staging database is a dedicated PostgreSQL database and role named `editorial_os_staging`. Its connection string is a runtime secret and must never be committed.
+The runtime uses a dedicated PostgreSQL database and role named `editorial_os_staging`. Its connection string is a secret and must never be committed.
 
-The runtime expects a SQLAlchemy psycopg URL. A standard Neon `postgresql://...` URL is normalized to `postgresql+psycopg://...` by the host bootstrap script.
+The application expects SQLAlchemy + psycopg. The host secret loader automatically converts a standard `postgresql://...` URL into `postgresql+psycopg://...`.
 
-## One-time AWS host contract
+## One-time GitHub environment setup
 
-The target EC2 host must have:
-
-- Docker Engine and the Docker Compose plugin;
-- AWS CLI v2;
-- Git;
-- SSM Agent;
-- an instance profile that can read the staging SSM parameter prefix and pull the two ECR repositories.
-
-The GitHub `staging` environment needs these non-secret variables:
+Create or reuse the GitHub environment named `staging` and set these non-secret variables:
 
 ```text
 AWS_REGION=eu-west-3
-AWS_ROLE_ARN=<GitHub-OIDC deploy role ARN>
-STAGING_EC2_INSTANCE_ID=<SSM managed instance id>
-STAGING_BASE_URL=<optional externally reachable URL>
+AWS_CLOUDFORMATION_ROLE_ARN=<existing Trigenys CloudFormation OIDC role ARN>
+AWS_DEPLOY_ROLE_ARN=<existing Trigenys deployment OIDC role ARN>
+STAGING_STACK_NAME=trigenys-editorial-os-staging
+STAGING_DEPLOY_ENABLED=false
 ```
 
-The GitHub OIDC role needs only the deployment actions: ECR repository/read-write operations, `sts:GetCallerIdentity`, and SSM `SendCommand` / `GetCommandInvocation` against the staging instance. It does not receive application credentials.
+The workflows deliberately reuse the existing Trigenys OIDC split: infrastructure mutations use the CloudFormation role, while deployments use the deployment role.
+
+Keep `STAGING_DEPLOY_ENABLED=false` until the host and runtime parameters are ready. Manual deploys remain available. After the first successful deployment, set it to `true` to deploy every green merge to `main`.
+
+## Provision the host
+
+Run:
+
+```text
+Actions → Provision staging infrastructure → Run workflow
+```
+
+The workflow applies `infra/aws/staging.yml`, which creates:
+
+- one small Ubuntu 24.04 EC2 instance (default `t3.micro`);
+- a 20 GB encrypted gp3 root volume;
+- an instance profile with SSM core permissions;
+- read-only access to the Editorial OS staging Parameter Store prefix;
+- a security group with outbound access only.
+
+The host bootstrap installs Docker, Docker Compose, Git, AWS CLI, curl and jq.
+
+No public SSH key or inbound application port is created.
 
 ## Runtime secrets
 
-Create these values in AWS Systems Manager Parameter Store as `SecureString` values under:
+Create these `SecureString` values in AWS Systems Manager Parameter Store:
 
 ```text
 /trigenys/editorial-os/staging/database-url
 /trigenys/editorial-os/staging/payload-base-url
 /trigenys/editorial-os/staging/payload-api-token
+/trigenys/editorial-os/staging/ghcr-token
 ```
 
-Optional non-default values:
+Optional parameters:
 
 ```text
 /trigenys/editorial-os/staging/payload-collection
 /trigenys/editorial-os/staging/payload-auth-mode
 /trigenys/editorial-os/staging/payload-auth-collection
+/trigenys/editorial-os/staging/ghcr-user
 ```
 
-`payload-auth-mode` is either `bearer` or `api_key`. Production Payload credentials must not be used here.
-
-The host script writes a mode-0600 `.env` file. Secret values are never passed through the browser, committed files, Docker build arguments, or GitHub workflow output.
-
-## Deployment
-
-Every push to `main` triggers `.github/workflows/deploy-staging.yml` after the environment has been configured. Manual `workflow_dispatch` can also deploy.
-
-The server-side sequence is:
+Defaults:
 
 ```text
-ECR login
-→ refresh runtime secrets from SSM
-→ pull immutable images
+payload-collection=posts
+payload-auth-mode=bearer
+payload-auth-collection=users
+ghcr-user=EagleFox31
+```
+
+The GHCR token needs package-read permission only on the staging host. Application credentials stay server-side. Production Payload credentials must not be copied into this prefix.
+
+The host renders a mode-0600 `.env`; neither the GitHub workflow nor the browser receives database or Payload credentials.
+
+## Deploy sequence
+
+`.github/workflows/deploy-staging.yml` performs:
+
+```text
+build API/web
+→ push commit-SHA images to GHCR
+→ OIDC into AWS
+→ resolve EC2 from the CloudFormation stack
+→ SSM command
+→ fetch runtime secrets from Parameter Store
+→ pull immutable GHCR images
 → alembic upgrade head
 → seed approved Insight sources
-→ read-only Payload staging connectivity check
+→ read-only Payload connectivity check
 → start API + web
 → smoke /health/web
 → smoke /health/api
 → smoke /health/ready
 ```
 
-The API health payload must identify itself as both `environment=staging` and `deployment=staging`. The web console displays a visible staging badge.
+The deployment is retry-safe. A second deployment of the same commit does not create a new schema migration, a duplicate pilot source, or a CMS document.
 
-## Idempotency
+The API health response must report:
 
-Redeploying the same commit is safe:
+```json
+{
+  "status": "ok",
+  "environment": "staging",
+  "deployment": "staging"
+}
+```
 
-- ECR images are content-addressed by commit SHA.
-- Alembic `upgrade head` is idempotent once the database is current.
-- Insight source seeding reconciles by stable pilot source keys.
-- Containers are replaced in place with `docker compose up -d --remove-orphans`.
-- Payload verification is GET-only; no CMS content is created by deployment.
+The operator console also renders a visible `staging` badge.
+
+## Private operator access
+
+Resolve the instance id from the CloudFormation stack, then use Session Manager port forwarding:
+
+```bash
+aws ssm start-session \
+  --region eu-west-3 \
+  --target <instance-id> \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["8080"],"localPortNumber":["8080"]}'
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080
+```
+
+This gives browser access to the console without opening port 8080 on the Internet.
 
 ## Rollback
 
-The deployment host retains the previous API/web image references in `.release.previous.env`.
+Every successful deployment keeps the prior API/web image references in `.release.previous.env`.
 
-Use **Deploy staging → Run workflow → action: rollback** to restore those images. The rollback smoke test must pass before the action succeeds.
+Run:
 
-Database migrations are forward-only: rollback does not run `alembic downgrade`. If a migration is not backward-compatible, fix forward or restore the staging database from the database provider's recovery mechanism rather than silently mutating schema history.
+```text
+Actions → Deploy staging → Run workflow → action = rollback
+```
 
-## Host-local checks
+Rollback restores the previous application images and reruns smoke tests.
 
-From `/opt/trigenys/editorial-os/staging`:
+Schema downgrades are intentionally **not** automatic. Alembic migrations are forward-only in this deployment path. If a migration proves incompatible, fix forward or restore the staging database through the database provider's recovery tooling rather than silently rewriting schema history.
+
+## Host-local diagnostics
+
+Via an SSM shell:
 
 ```bash
+cd /opt/trigenys/editorial-os/staging
 BASE_URL=http://127.0.0.1:8080 ./smoke.sh
 docker compose -f compose.staging.yml ps
 docker compose -f compose.staging.yml logs --tail=200 api
 ```
 
-No command should print `.env` or Parameter Store values.
+Never print or `cat` the runtime `.env`.
 
 ## Gate to #16
 
-Issue #35 is complete only when a real deploy reaches staging and the three smoke checks plus the Payload read-only connectivity check pass. After that, #16 can execute scenario 1 through the Operator Console and continue through the ten representative real staging runs.
+Issue #35 is complete only after the real host exists and one deployment passes:
+
+- Alembic at head;
+- web health;
+- API staging identity;
+- database readiness;
+- idempotent source seeding;
+- read-only Payload staging connectivity;
+- repeat deployment of the same revision;
+- manual rollback smoke test.
+
+Only then should #16 start scenario 1 of the ten real Trigenys Insight staging runs.
