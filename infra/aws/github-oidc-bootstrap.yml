@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Dedicated GitHub OIDC and CloudFormation execution roles for Trigenys Editorial OS staging.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: Trigenys
+    AllowedPattern: "^[A-Za-z0-9_.-]+$"
+  GitHubRepository:
+    Type: String
+    Default: trigenys-editorial-os
+    AllowedPattern: "^[A-Za-z0-9_.-]+$"
+  GitHubEnvironment:
+    Type: String
+    Default: staging
+    AllowedPattern: "^[A-Za-z0-9_.-]+$"
+  ApplicationStackName:
+    Type: String
+    Default: trigenys-editorial-os-staging
+    AllowedPattern: "^[A-Za-z][-A-Za-z0-9]*$"
+
+Resources:
+  CloudFormationExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: trigenys-editorial-os-cloudformation-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: EditorialOSStagingInfrastructure
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ManageStagingNetworkAndCompute
+                Effect: Allow
+                Action:
+                  - ec2:AssociateRouteTable
+                  - ec2:AttachInternetGateway
+                  - ec2:CreateInternetGateway
+                  - ec2:CreateRoute
+                  - ec2:CreateRouteTable
+                  - ec2:CreateSecurityGroup
+                  - ec2:CreateSubnet
+                  - ec2:CreateTags
+                  - ec2:CreateVpc
+                  - ec2:DeleteInternetGateway
+                  - ec2:DeleteRoute
+                  - ec2:DeleteRouteTable
+                  - ec2:DeleteSecurityGroup
+                  - ec2:DeleteSubnet
+                  - ec2:DeleteVpc
+                  - ec2:Describe*
+                  - ec2:DetachInternetGateway
+                  - ec2:DisassociateRouteTable
+                  - ec2:ModifySubnetAttribute
+                  - ec2:RunInstances
+                  - ec2:TerminateInstances
+                Resource: "*"
+              - Sid: ManageStagingInstanceRole
+                Effect: Allow
+                Action:
+                  - iam:AddRoleToInstanceProfile
+                  - iam:AttachRolePolicy
+                  - iam:CreateInstanceProfile
+                  - iam:CreateRole
+                  - iam:DeleteInstanceProfile
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:GetInstanceProfile
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:PassRole
+                  - iam:PutRolePolicy
+                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:TagRole
+                  - iam:UntagRole
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/trigenys-editorial-os-staging-instance-*
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*
+              - Sid: ResolvePublicAmiParameter
+                Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: "*"
+      Tags:
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: trigenys-editorial-os-github-actions-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOwner}/${GitHubRepository}:environment:${GitHubEnvironment}
+      Policies:
+        - PolicyName: EditorialOSStagingDeployment
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ManageApplicationStack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:UpdateStack
+                  - cloudformation:ValidateTemplate
+                Resource:
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ApplicationStackName}/*
+              - Sid: PassDedicatedExecutionRole
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt CloudFormationExecutionRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: cloudformation.amazonaws.com
+              - Sid: SendCommandsToStagingHost
+                Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript
+                  - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+              - Sid: ReadCommandAndManagedInstanceState
+                Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                  - ssm:GetCommandInvocation
+                  - ssm:ListCommandInvocations
+                Resource: "*"
+      Tags:
+        - Key: Project
+          Value: trigenys-editorial-os
+        - Key: Environment
+          Value: staging
+
+Outputs:
+  GitHubActionsRoleArn:
+    Description: Configure this as AWS_DEPLOY_ROLE_ARN in the GitHub staging environment.
+    Value: !GetAtt GitHubActionsRole.Arn
+
+  CloudFormationExecutionRoleArn:
+    Description: Configure this as AWS_CLOUDFORMATION_ROLE_ARN in the GitHub staging environment.
+    Value: !GetAtt CloudFormationExecutionRole.Arn
+
+  TrustedGitHubSubject:
+    Description: Exact GitHub OIDC subject allowed to assume the deployment role.
+    Value: !Sub repo:${GitHubOwner}/${GitHubRepository}:environment:${GitHubEnvironment}
