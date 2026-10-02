@@ -76,7 +76,6 @@ jobs:
       contains(fromJSON(needs.impact.outputs.gates), 'api') ||
       contains(fromJSON(needs.impact.outputs.gates), 'staging-artifacts')
     runs-on: ubuntu-latest
-    environment: staging
     outputs:
       api_image: ${{ steps.images.outputs.api_image }}
       web_image: ${{ steps.images.outputs.web_image }}
