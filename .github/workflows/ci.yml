@@ -55,3 +55,33 @@ jobs:
       - run: python -m ruff check backend/src backend/tests backend/migrations scripts
       - run: python -m mypy backend/src backend/tests scripts
       - run: python -m pytest backend/tests -q
+
+  staging-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate staging scripts
+        run: bash -n scripts/staging/*.sh
+      - name: Build staging API image
+        run: docker build --file deploy/api.Dockerfile --tag editorial-os-api:ci .
+      - name: Build staging web image
+        run: |
+          docker build \
+            --file deploy/web.Dockerfile \
+            --build-arg VITE_DEPLOYMENT_LABEL=staging \
+            --tag editorial-os-web:ci \
+            .
+      - name: Validate staging compose
+        run: |
+          cat > deploy/.env <<'EOF'
+          EDITORIAL_OS_ENVIRONMENT=staging
+          EDITORIAL_OS_DEPLOYMENT_LABEL=staging
+          EDITORIAL_OS_DATABASE_URL=postgresql+psycopg://fixture:fixture@example.invalid/editorial_os
+          EDITORIAL_OS_PAYLOAD_ENABLED=true
+          EDITORIAL_OS_PAYLOAD_BASE_URL=https://payload.example.invalid
+          EDITORIAL_OS_PAYLOAD_API_TOKEN=fixture
+          EOF
+          API_IMAGE=editorial-os-api:ci \
+          WEB_IMAGE=editorial-os-web:ci \
+          docker compose --file deploy/compose.staging.yml config >/dev/null
+          rm -f deploy/.env
