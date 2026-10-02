@@ -17,6 +17,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     service: str
     environment: str
+    deployment: str
 
 
 class ReadinessResponse(BaseModel):
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
             status="ok",
             service=settings.app_name,
             environment=settings.environment,
+            deployment=settings.deployment_label,
         )
 
     @application.get("/health/ready", response_model=ReadinessResponse, tags=["system"])
