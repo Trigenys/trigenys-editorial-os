@@ -12,6 +12,8 @@ def test_health_endpoint() -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["service"] == "Trigenys Editorial OS API"
+    assert payload["environment"] == "test"
+    assert payload["deployment"] == "local"
 
 
 def test_readiness_endpoint_with_postgres() -> None:
