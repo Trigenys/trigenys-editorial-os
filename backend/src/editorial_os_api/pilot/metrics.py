@@ -125,7 +125,7 @@ class PilotMetricsService:
                 else item.reserved_cost_usd
             )
             for item in usages
-        , start=Decimal("0"))
+        , Decimal("0"))
         unsupported_claims = sum(
             item.support_status == "UNSUPPORTED"
             for item in claims
