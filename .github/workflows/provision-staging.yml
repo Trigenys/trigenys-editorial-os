@@ -1,6 +1,10 @@
 name: Provision staging infrastructure
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/provision-staging.yml
   workflow_dispatch:
     inputs:
       instance_type:
@@ -25,7 +29,31 @@ env:
   STAGING_STACK_NAME: ${{ vars.STAGING_STACK_NAME || 'trigenys-editorial-os-staging' }}
 
 jobs:
+  oidc-probe:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate with proven Trigenys AWS deploy role
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::458018461157:role/atelier-maitre-github-actions-role
+          aws-region: eu-west-3
+          role-session-name: editorial-os-oidc-probe
+
+      - name: Verify AWS identity and CloudFormation execution role visibility
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
+          aws iam get-role \
+            --role-name atelier-maitre-cloudformation-execution-role \
+            --query 'Role.Arn' \
+            --output text
+
   provision:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: staging
     steps:
