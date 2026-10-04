@@ -54,12 +54,14 @@ The bootstrap stack is `trigenys-editorial-os-github-oidc`. It creates two dedic
 - `trigenys-editorial-os-github-actions-role`, trusted only for the GitHub OIDC subject `repo:Trigenys/trigenys-editorial-os:environment:staging`;
 - `trigenys-editorial-os-cloudformation-execution-role`, assumed only by CloudFormation for the staging infrastructure stack.
 
-Create or reuse the GitHub environment named `staging` and copy the bootstrap outputs into these **environment-scoped variables**:
+The workflows now carry safe fallback values for the two non-secret IAM role ARNs created by the bootstrap stack:
 
 ```text
-AWS_DEPLOY_ROLE_ARN=<GitHubActionsRoleArn output>
-AWS_CLOUDFORMATION_ROLE_ARN=<CloudFormationExecutionRoleArn output>
+AWS_DEPLOY_ROLE_ARN=arn:aws:iam::458018461157:role/trigenys-editorial-os-github-actions-role
+AWS_CLOUDFORMATION_ROLE_ARN=arn:aws:iam::458018461157:role/trigenys-editorial-os-cloudformation-execution-role
 ```
+
+GitHub Actions variables with the same names remain optional overrides for portability or future role rotation; no secret is embedded. Jobs still target the protected `staging` environment so the OIDC subject remains `repo:Trigenys/trigenys-editorial-os:environment:staging`.
 
 This preserves the proven OIDC → deployment role → CloudFormation execution-role split without coupling Editorial OS to another repository's IAM trust.
 
