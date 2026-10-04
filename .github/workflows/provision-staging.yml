@@ -23,6 +23,8 @@ concurrency:
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-3' }}
   STAGING_STACK_NAME: ${{ vars.STAGING_STACK_NAME || 'trigenys-editorial-os-staging' }}
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::458018461157:role/trigenys-editorial-os-github-actions-role' }}
+  AWS_CLOUDFORMATION_ROLE_ARN: ${{ vars.AWS_CLOUDFORMATION_ROLE_ARN || 'arn:aws:iam::458018461157:role/trigenys-editorial-os-cloudformation-execution-role' }}
 
 jobs:
   provision:
@@ -33,8 +35,8 @@ jobs:
 
       - name: Validate AWS roles
         env:
-          CF_ROLE: ${{ vars.AWS_CLOUDFORMATION_ROLE_ARN }}
-          DEPLOY_ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          CF_ROLE: ${{ env.AWS_CLOUDFORMATION_ROLE_ARN }}
+          DEPLOY_ROLE: ${{ env.AWS_DEPLOY_ROLE_ARN }}
         run: |
           test -n "$CF_ROLE" || {
             echo "Missing staging variable AWS_CLOUDFORMATION_ROLE_ARN" >&2
@@ -48,7 +50,7 @@ jobs:
       - name: Authenticate to AWS with GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: editorial-os-staging-infra
 
@@ -58,7 +60,7 @@ jobs:
           aws cloudformation deploy \
             --stack-name "$STAGING_STACK_NAME" \
             --template-file infra/aws/staging.yml \
-            --role-arn "${{ vars.AWS_CLOUDFORMATION_ROLE_ARN }}" \
+            --role-arn "$AWS_CLOUDFORMATION_ROLE_ARN" \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides "InstanceType=${{ inputs.instance_type }}"
