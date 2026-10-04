@@ -14,3 +14,10 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Cloudflare spike build outputs
+cloudflare/dist/
+cloudflare/src/editorial_os_api/
+cloudflare/.wrangler-dist/
+cloudflare/.venv/
+cloudflare/uv.lock
