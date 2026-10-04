@@ -130,5 +130,4 @@ jobs:
           uv sync --group dev
           uv run pywrangler deploy \
             --dry-run \
-            --config wrangler.ci.jsonc \
             --outdir .wrangler-dist
