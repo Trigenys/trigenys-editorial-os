@@ -33,7 +33,7 @@ The `cloudflare-spike` CI job:
 3. installs only the runtime dependencies needed by the currently exposed FastAPI surface;
 4. runs a Pywrangler dry-run bundle against the current Python Workers runtime.
 
-The CI Hyperdrive ID is a syntactically valid non-production placeholder and is never used for a live connection.
+The committed `cloudflare/wrangler.jsonc` carries a syntactically valid non-production Hyperdrive placeholder solely so Pywrangler can perform a dry-run. A live deploy must replace that ID with the staging Hyperdrive configuration before deployment.
 
 ## Live staging configuration
 
