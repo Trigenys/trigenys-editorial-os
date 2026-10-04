@@ -50,6 +50,7 @@ Resources:
                   - ec2:CreateSubnet
                   - ec2:CreateTags
                   - ec2:CreateVpc
+                  - ec2:AuthorizeSecurityGroupEgress
                   - ec2:DeleteInternetGateway
                   - ec2:DeleteRoute
                   - ec2:DeleteRouteTable
@@ -60,6 +61,8 @@ Resources:
                   - ec2:DetachInternetGateway
                   - ec2:DisassociateRouteTable
                   - ec2:ModifySubnetAttribute
+                  - ec2:ModifyVpcAttribute
+                  - ec2:RevokeSecurityGroupEgress
                   - ec2:RunInstances
                   - ec2:TerminateInstances
                 Resource: "*"
@@ -77,6 +80,9 @@ Resources:
                   - iam:GetInstanceProfile
                   - iam:GetRole
                   - iam:GetRolePolicy
+                  - iam:ListAttachedRolePolicies
+                  - iam:ListInstanceProfilesForRole
+                  - iam:ListRolePolicies
                   - iam:PassRole
                   - iam:PutRolePolicy
                   - iam:RemoveRoleFromInstanceProfile
