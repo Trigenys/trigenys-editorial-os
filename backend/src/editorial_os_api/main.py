@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 
-from editorial_os_api.config import get_settings
+from editorial_os_api.config import Settings, get_settings
 from editorial_os_api.db import check_database
 from editorial_os_api.observability.factory import build_observability
 from editorial_os_api.observability.http import CorrelationMiddleware
@@ -24,8 +24,8 @@ class ReadinessResponse(BaseModel):
     status: Literal["ready"]
 
 
-def create_app() -> FastAPI:
-    settings = get_settings()
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
     configure_structured_logging()
     observability = build_observability(settings)
 

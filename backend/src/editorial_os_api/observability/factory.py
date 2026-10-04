@@ -1,10 +1,6 @@
 import logging
 
 from editorial_os_api.config import Settings
-from editorial_os_api.observability.adapters import (
-    LangfuseTelemetrySink,
-    PostHogTelemetrySink,
-)
 from editorial_os_api.observability.contracts import TelemetrySink
 from editorial_os_api.observability.hub import ObservabilityHub
 from editorial_os_api.observability.logging import log_event
@@ -16,6 +12,8 @@ def build_observability(settings: Settings) -> ObservabilityHub:
 
     if settings.langfuse_enabled:
         if settings.langfuse_public_key and settings.langfuse_secret_key:
+            from editorial_os_api.observability.adapters.langfuse import LangfuseTelemetrySink
+
             sinks.append(
                 LangfuseTelemetrySink(
                     public_key=settings.langfuse_public_key,
@@ -35,6 +33,8 @@ def build_observability(settings: Settings) -> ObservabilityHub:
 
     if settings.posthog_enabled:
         if settings.posthog_project_token:
+            from editorial_os_api.observability.adapters.posthog import PostHogTelemetrySink
+
             sinks.append(
                 PostHogTelemetrySink(
                     project_token=settings.posthog_project_token,

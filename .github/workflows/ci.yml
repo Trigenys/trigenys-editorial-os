@@ -103,3 +103,31 @@ jobs:
           WEB_IMAGE=editorial-os-web:ci \
           docker compose --file deploy/compose.staging.yml config >/dev/null
           rm -f deploy/.env
+
+
+  cloudflare-spike:
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'cloudflare-spike') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v7
+      - name: Build operator console
+        run: |
+          npm install --ignore-scripts
+          npm run build
+      - name: Prepare isolated Worker build context
+        run: python scripts/cloudflare/prepare_spike.py
+      - name: Prove Python Worker bundle without deploying
+        working-directory: cloudflare
+        run: |
+          uv sync --group dev
+          uv run pywrangler deploy \
+            --dry-run \
+            --outdir .wrangler-dist
