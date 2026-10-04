@@ -18,14 +18,18 @@
         "tsconfig.json",
         "vite.config.ts"
       ],
-      "gates": ["web"]
+      "gates": [
+        "web"
+      ]
     },
     "api": {
       "paths": [
         "backend/**",
         "scripts/*.py"
       ],
-      "gates": ["api"]
+      "gates": [
+        "api"
+      ]
     },
     "staging": {
       "paths": [
@@ -35,15 +39,40 @@
         ".github/workflows/deploy-staging.yml",
         ".github/workflows/provision-staging.yml"
       ],
-      "gates": ["staging-artifacts"],
-      "dependsOn": ["web", "api"]
+      "gates": [
+        "staging-artifacts"
+      ],
+      "dependsOn": [
+        "web",
+        "api"
+      ]
     },
     "ci-policy": {
       "paths": [
         ".github/workflows/ci.yml",
         ".github/appfactory-impact.json"
       ],
-      "gates": ["web", "api", "staging-artifacts"]
+      "gates": [
+        "web",
+        "api",
+        "staging-artifacts",
+        "cloudflare-spike"
+      ]
+    },
+    "cloudflare-staging": {
+      "paths": [
+        "cloudflare/**",
+        "scripts/cloudflare/**",
+        "backend/**",
+        "src/**",
+        "index.html",
+        "package.json",
+        "tsconfig.json",
+        "vite.config.ts"
+      ],
+      "gates": [
+        "cloudflare-spike"
+      ]
     }
   }
 }
