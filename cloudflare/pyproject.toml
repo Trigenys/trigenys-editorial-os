@@ -1,0 +1,17 @@
+[project]
+name = "trigenys-editorial-os-cloudflare"
+version = "0.1.0"
+description = "Cloudflare staging adapter for Trigenys Editorial OS"
+requires-python = ">=3.13"
+dependencies = [
+  "fastapi>=0.141.1,<0.142.0",
+  "psycopg>=3.2,<4.0",
+  "pydantic-settings>=2.15.0,<3.0.0",
+  "sqlalchemy>=2.0.54,<2.1.0",
+]
+
+[dependency-groups]
+dev = [
+  "workers-py",
+  "workers-runtime-sdk",
+]
