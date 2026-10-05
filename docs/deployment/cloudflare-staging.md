@@ -1,11 +1,15 @@
-# Cloudflare zero-cost staging spike
+# Cloudflare zero-cost staging
 
-Issue #44 tests whether Editorial OS can satisfy issue #35 without an always-on EC2 host.
+Issue #35 uses Cloudflare as the pre-revenue staging runtime. Issue #46 moves Cloudflare mutations behind AppFactory so the product repository does not own provider credentials.
 
-## Target architecture
+## Architecture
 
 ```text
-Cloudflare Worker
+GitHub Actions (OIDC only)
+          ↓
+      AppFactory
+          ↓
+Cloudflare staging Worker
   ├─ Workers Static Assets → React/Vite operator console
   └─ Python Worker / ASGI → canonical FastAPI app
                               ↓
@@ -16,79 +20,102 @@ Cloudflare Worker
                        Payload staging
 ```
 
-The application domain and FastAPI routes remain canonical. Cloudflare is a transport/runtime adapter, not a fork of the product.
+AppFactory is the Cloudflare control plane. The Editorial OS repository never receives a Cloudflare API token, Cloudflare account ID or database password.
 
 ## Cost rule
 
-The spike must not require Cloudflare Containers or an always-on AWS resource. Static assets use Workers Static Assets. Dynamic API traffic stays within the Workers Free plan during the pilot. Hyperdrive is available on the Free plan.
+This path must stay viable on the zero-cost pre-revenue architecture:
 
-AWS remains a fallback deployment target only. Do not provision the EC2 staging stack while this spike is active.
+- no EC2;
+- no NAT Gateway;
+- no Cloudflare Containers;
+- React/Vite served through Workers Static Assets;
+- FastAPI runs as a Python Worker;
+- PostgreSQL remains on the existing Neon staging database;
+- Hyperdrive is provisioned by AppFactory.
+
+The old AWS staging artifacts remain as a fallback reference only. Do not provision the AWS staging stack for this pilot.
+
+## Ownership and identity
+
+The canonical workflow is:
+
+```text
+.github/workflows/appfactory-infrastructure.yml
+```
+
+It authenticates to AppFactory with a short-lived GitHub Actions OIDC token using audience `appfactory-api`.
+
+For `environment: staging`, AppFactory owns deterministic resources:
+
+```text
+Worker      trigenys-editorial-os-staging-api
+Hyperdrive  trigenys-editorial-os-staging
+DB profile  trigenys-editorial-os-staging
+```
+
+The database profile is AppFactory-owned. Repository requests never contain PostgreSQL host, user or password fields.
+
+## Release sequence
+
+The workflow deliberately runs three retry-safe mutations:
+
+```text
+1. bootstrap/reconcile managed staging Worker
+2. provision/reconcile staging Hyperdrive
+3. reconcile Worker again with:
+   - Hyperdrive binding
+   - Alembic migration gate
+   - database readiness probe
+```
+
+The first Worker pass creates the managed ownership marker. Hyperdrive refuses to adopt an unrelated Worker. The second Worker pass injects the exact Hyperdrive identity into the deployment and blocks release if database readiness fails.
+
+## Packaging
+
+AppFactory permits only its reviewed runtime-only Python Worker recipe:
+
+```text
+build:
+bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production
+
+deploy:
+bash scripts/package_worker.sh deploy wrangler.production.toml
+```
+
+Cloudflare Builds runs from `/backend`. The packaging script builds the real Vite console, copies the canonical `editorial_os_api` package into the isolated Python Worker context, installs the minimal compatible Worker runtime dependencies, then invokes Pywrangler.
+
+`backend/wrangler.production.toml` owns the staging Worker/static-assets configuration. AppFactory appends the managed Hyperdrive binding to an ephemeral copy during release; the database UUID is not committed.
+
+## Database migration
+
+AppFactory injects the centrally managed database URL only into the build-time Alembic gate using:
+
+```text
+TRIGENYS_EDITORIAL_OS_DATABASE_URL
+```
+
+`backend/migrations/env.py` accepts that release-only variable while the runtime Worker itself connects through the `HYPERDRIVE` binding.
+
+## Payload
+
+Payload staging remains a separate acceptance dependency. Production Payload credentials must never be reused.
+
+When staging credentials are available, expose them through AppFactory-managed runtime secrets, not repository secrets. The Worker adapter will remain responsible for mapping provider-managed names into the canonical application settings.
 
 ## CI proof
 
-The `cloudflare-spike` CI job:
+The `cloudflare-spike` job executes the same `backend/scripts/package_worker.sh` dry-run recipe that AppFactory will use in Cloudflare Builds. A toy Worker is not considered proof.
 
-1. builds the real Vite frontend;
-2. copies the real `editorial_os_api` package into an isolated Worker build context;
-3. installs only the runtime dependencies needed by the currently exposed FastAPI surface;
-4. runs a Pywrangler dry-run bundle against the current Python Workers runtime.
+## Acceptance before closing #35
 
-The committed `cloudflare/wrangler.jsonc` carries a syntactically valid non-production Hyperdrive placeholder solely so Pywrangler can perform a dry-run. A live deploy must replace that ID with the staging Hyperdrive configuration before deployment.
-
-## Live staging configuration
-
-A live staging deploy must use a real Hyperdrive configuration connected only to the Neon staging database.
-
-Cloudflare binding:
-
-```text
-HYPERDRIVE=<staging Hyperdrive configuration>
-```
-
-Runtime secrets/vars:
-
-```text
-EDITORIAL_OS_PAYLOAD_ENABLED=true
-EDITORIAL_OS_PAYLOAD_BASE_URL=<Payload staging URL>
-EDITORIAL_OS_PAYLOAD_API_TOKEN=<secret>
-```
-
-Optional:
-
-```text
-EDITORIAL_OS_PAYLOAD_COLLECTION=posts
-EDITORIAL_OS_PAYLOAD_AUTH_MODE=bearer
-EDITORIAL_OS_PAYLOAD_AUTH_COLLECTION=users
-```
-
-No production Payload credential belongs in this environment.
-
-## Routing
-
-Static assets bypass Python compute. Worker-first routes are limited to:
-
-- `/api/*`
-- `/health` and `/health/*`
-- FastAPI docs/OpenAPI routes
-
-All other routes use SPA static-asset handling.
-
-## Runtime compatibility notes
-
-Cloudflare Python Workers execute in Pyodide. FastAPI is supported through Cloudflare's ASGI adapter. Hyperdrive supports Python Workers and PostgreSQL drivers including psycopg. Cloudflare documents synchronous SQLAlchemy ORM support; async SQLAlchemy is not currently supported because greenlet is unavailable.
-
-The Worker therefore keeps the existing synchronous SQLAlchemy path for this spike. A live load test is still required before #35 can close.
-
-Telemetry SDKs are lazy-loaded so disabled Langfuse/PostHog integrations do not become mandatory Worker dependencies.
-
-## Acceptance before replacing AWS
-
-Do not mark #35 complete until the live Worker proves:
+Do not mark #35 complete until the live AppFactory-managed Worker proves:
 
 - `/health` returns `environment=staging` and `deployment=cloudflare-worker`;
-- `/health/ready` reaches Neon through Hyperdrive;
-- the operator console loads from static assets and calls the same-origin API;
+- `/health/ready` reaches Neon through the AppFactory-managed Hyperdrive binding;
+- Alembic is at head;
+- the operator console loads through Workers Static Assets and calls the same-origin API;
 - gate mutations remain retry-safe;
-- staging Payload connectivity is read-only until publish-gate testing;
-- no production credential is present;
-- a repeated deployment is idempotent.
+- repeated infrastructure reconciliation is idempotent;
+- staging Payload connectivity is proven without production credentials;
+- no AWS compute resource was created.
