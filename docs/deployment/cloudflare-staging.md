@@ -119,3 +119,16 @@ Do not mark #35 complete until the live AppFactory-managed Worker proves:
 - repeated infrastructure reconciliation is idempotent;
 - staging Payload connectivity is proven without production credentials;
 - no AWS compute resource was created.
+
+
+## Declarative bootstrap
+
+The one-time staging reconciliation is GitOps-driven by:
+
+```text
+.appfactory/staging-infrastructure.json
+```
+
+A merge that changes this file triggers the canonical AppFactory infrastructure workflow on `main`. AppFactory then reconciles the Worker, Hyperdrive, migration gate and readiness. Its own ownership-marker commits do not retrigger the workflow because only the declarative request path is watched.
+
+Normal application commits are deployed afterward by Cloudflare Workers Builds; they do not reprovision infrastructure.
