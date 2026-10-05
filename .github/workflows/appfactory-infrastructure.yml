@@ -2,6 +2,10 @@ name: AppFactory infrastructure
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".appfactory/staging-infrastructure.json"
 
 permissions:
   contents: read
@@ -22,6 +26,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Validate declarative staging request
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '
+            .schemaVersion == 1 and
+            .provider == "cloudflare" and
+            .environment == "staging" and
+            .worker.runtime == "python" and
+            .worker.rootDirectory == "/backend" and
+            .worker.recipe == "runtime-only" and
+            .database.provider == "neon" and
+            .database.profile == "trigenys-editorial-os-staging" and
+            .database.binding == "HYPERDRIVE" and
+            .database.migration == "python-alembic" and
+            .costPolicy.requiresPaidCompute == false and
+            .costPolicy.awsEc2 == false and
+            .costPolicy.cloudflareContainers == false
+          ' .appfactory/staging-infrastructure.json >/dev/null
 
       - name: Request GitHub OIDC token
         id: oidc
