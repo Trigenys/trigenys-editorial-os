@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "provider": "cloudflare",
+  "environment": "staging",
+  "worker": {
+    "runtime": "python",
+    "rootDirectory": "/backend",
+    "recipe": "runtime-only"
+  },
+  "database": {
+    "provider": "neon",
+    "profile": "trigenys-editorial-os-staging",
+    "binding": "HYPERDRIVE",
+    "migration": "python-alembic"
+  },
+  "costPolicy": {
+    "requiresPaidCompute": false,
+    "awsEc2": false,
+    "cloudflareContainers": false
+  }
+}
