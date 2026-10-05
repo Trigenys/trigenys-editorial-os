@@ -68,7 +68,10 @@
         "index.html",
         "package.json",
         "tsconfig.json",
-        "vite.config.ts"
+        "vite.config.ts",
+        ".github/workflows/appfactory-infrastructure.yml",
+        "backend/wrangler.production.toml",
+        "backend/scripts/package_worker.sh"
       ],
       "gates": [
         "cloudflare-spike"
