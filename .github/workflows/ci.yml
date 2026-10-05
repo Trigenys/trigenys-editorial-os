@@ -75,7 +75,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Validate staging scripts
-        run: bash -n scripts/staging/*.sh
+        run: |
+          bash -n scripts/staging/*.sh
+          bash -n backend/scripts/*.sh
       - name: Validate CloudFormation templates
         run: |
           python -m pip install cfn-lint
@@ -118,16 +120,10 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v7
-      - name: Build operator console
+      - name: Prove AppFactory Python Worker package without deploying
+        working-directory: backend
         run: |
-          npm install --ignore-scripts
-          npm run build
-      - name: Prepare isolated Worker build context
-        run: python scripts/cloudflare/prepare_spike.py
-      - name: Prove Python Worker bundle without deploying
-        working-directory: cloudflare
-        run: |
-          uv sync --group dev
-          uv run pywrangler deploy \
-            --dry-run \
-            --outdir .wrangler-dist
+          bash scripts/package_worker.sh \
+            dry-run \
+            wrangler.production.toml \
+            ../worker-dist-ci
