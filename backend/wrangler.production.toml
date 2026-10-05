@@ -1,0 +1,19 @@
+name = "trigenys-editorial-os-staging-api"
+main = "../cloudflare/src/worker.py"
+compatibility_date = "2026-10-04"
+compatibility_flags = ["python_workers"]
+keep_vars = true
+
+[assets]
+directory = "../cloudflare/dist"
+not_found_handling = "single-page-application"
+run_worker_first = [
+  "/api/*",
+  "/health",
+  "/health/*",
+  "/docs",
+  "/docs/*",
+  "/redoc",
+  "/redoc/*",
+  "/openapi.json"
+]
