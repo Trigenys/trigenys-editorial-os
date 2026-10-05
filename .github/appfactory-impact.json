@@ -71,7 +71,8 @@
         "vite.config.ts",
         ".github/workflows/appfactory-infrastructure.yml",
         "backend/wrangler.production.toml",
-        "backend/scripts/package_worker.sh"
+        "backend/scripts/package_worker.sh",
+        ".appfactory/staging-infrastructure.json"
       ],
       "gates": [
         "cloudflare-spike"
