@@ -3,7 +3,7 @@
   "name": "trigenys-editorial-os-staging-spike",
   "main": "src/worker.py",
   "compatibility_date": "2026-10-04",
-  "compatibility_flags": ["python_workers"],
+  "compatibility_flags": ["python_workers", "disable_python_external_sdk"],
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application",

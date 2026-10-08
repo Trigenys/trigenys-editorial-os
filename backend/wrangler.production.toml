@@ -1,7 +1,7 @@
 name = "trigenys-editorial-os-staging-api"
 main = "../cloudflare/src/worker.py"
 compatibility_date = "2026-10-04"
-compatibility_flags = ["python_workers"]
+compatibility_flags = ["python_workers", "disable_python_external_sdk"]
 keep_vars = true
 
 [assets]
