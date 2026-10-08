@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from workers import WorkerEntrypoint, asgi
+import asgi
+from workers import WorkerEntrypoint
 
 from editorial_os_api.config import Settings
 from editorial_os_api.main import create_app
