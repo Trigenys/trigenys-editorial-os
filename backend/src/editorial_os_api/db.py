@@ -8,10 +8,18 @@ from editorial_os_api.config import Settings, get_settings
 
 @lru_cache
 def _engine_for(database_url: str, database_echo: bool) -> Engine:
+    connect_args: dict[str, object] = {}
+    if database_url.startswith("postgresql+pg8000://"):
+        # Hyperdrive exposes a plain TCP endpoint to the Worker. TLS is handled
+        # between Hyperdrive and the origin database, so the Worker-side driver
+        # must not try to negotiate TLS with the binding.
+        connect_args["ssl_context"] = False
+
     return create_engine(
         database_url,
         echo=database_echo,
         pool_pre_ping=True,
+        connect_args=connect_args,
     )
 
 
