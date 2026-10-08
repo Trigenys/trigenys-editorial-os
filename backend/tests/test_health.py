@@ -47,3 +47,33 @@ def test_readiness_uses_injected_app_database_settings(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert seen == [settings]
+
+
+def test_session_factory_can_be_bound_to_injected_runtime_settings(monkeypatch) -> None:
+    import editorial_os_api.persistence.session as session_module
+
+    settings = Settings(
+        environment="staging",
+        deployment_label="cloudflare-worker",
+        database_url="postgresql+psycopg://runtime:runtime@runtime-db:5432/editorial_os",
+        langfuse_enabled=False,
+        posthog_enabled=False,
+        payload_enabled=False,
+        postiz_enabled=False,
+        n8n_enabled=False,
+        remotion_enabled=False,
+    )
+    captured: list[Settings | None] = []
+
+    class DummyEngine:
+        pass
+
+    def fake_get_engine(candidate: Settings | None = None):
+        captured.append(candidate)
+        return DummyEngine()
+
+    monkeypatch.setattr(session_module, "get_engine", fake_get_engine)
+    session_module.configure_session_factory(settings)
+    session_module.get_session_factory()
+
+    assert captured == [settings]
