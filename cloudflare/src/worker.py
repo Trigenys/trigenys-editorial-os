@@ -29,10 +29,7 @@ def _hyperdrive_database_url(binding: object) -> str:
     host = str(getattr(binding, "host"))
     port = int(getattr(binding, "port"))
     database = quote(str(getattr(binding, "database")), safe="")
-    return (
-        f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}"
-        "?sslmode=disable"
-    )
+    return f"postgresql+pg8000://{user}:{password}@{host}:{port}/{database}"
 
 
 class Default(WorkerEntrypoint):
