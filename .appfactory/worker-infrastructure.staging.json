@@ -6,5 +6,8 @@
   "rootDirectory": "/backend",
   "buildCommand": "bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
   "deployCommand": "bash scripts/package_worker.sh deploy wrangler.production.toml",
-  "environment": "staging"
+  "environment": "staging",
+  "migrationRecipe": "python-alembic",
+  "migrationProfile": "trigenys-editorial-os-staging",
+  "databaseUrlEnv": "TRIGENYS_EDITORIAL_OS_DATABASE_URL"
 }
