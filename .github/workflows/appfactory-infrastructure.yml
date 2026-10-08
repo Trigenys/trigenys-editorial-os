@@ -81,6 +81,7 @@ jobs:
           }
 
       - name: Bootstrap staging Neon profile
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
