@@ -80,6 +80,29 @@ jobs:
             exit 1
           }
 
+      - name: Bootstrap staging Neon profile
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -cn --arg repository "$REPOSITORY" '{repository: $repository}')"
+          response_file="$(mktemp)"
+          code="$(curl --silent --show-error \
+            --output "$response_file" \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "Authorization: Bearer $OIDC_TOKEN" \
+            --data "$payload" \
+            "$APPFACTORY_URL/infrastructure/neon")"
+          jq . "$response_file"
+          [[ "$code" == "200" ]] || {
+            echo "::error::AppFactory Neon bootstrap returned HTTP $code"
+            exit 1
+          }
+
       - name: Provision staging Hyperdrive
         id: hyperdrive
         shell: bash
