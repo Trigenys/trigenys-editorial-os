@@ -13,7 +13,6 @@
     "binding": "HYPERDRIVE",
     "migration": "python-alembic"
   },
-
   "costPolicy": {
     "requiresPaidCompute": false,
     "awsEc2": false,
