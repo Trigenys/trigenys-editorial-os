@@ -57,7 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @application.get("/health/ready", response_model=ReadinessResponse, tags=["system"])
     def readiness() -> ReadinessResponse:
         try:
-            check_database()
+            check_database(settings)
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
