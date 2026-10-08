@@ -7,6 +7,7 @@ from workers import WorkerEntrypoint
 
 from editorial_os_api.config import Settings
 from editorial_os_api.main import create_app
+from editorial_os_api.persistence.session import configure_session_factory
 
 
 def _text(value: object | None) -> str | None:
@@ -76,6 +77,7 @@ class Default(WorkerEntrypoint):
                 n8n_enabled=False,
                 remotion_enabled=False,
             )
+            configure_session_factory(settings)
             application = create_app(settings)
             self._editorial_os_app = application
 
