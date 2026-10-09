@@ -78,8 +78,8 @@ jobs:
               repository: $repository,
               environment: "staging",
               rootDirectory: "/backend",
-              buildCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
-              deployCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh deploy wrangler.production.toml"
+              buildCommand: "bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
+              deployCommand: "bash scripts/package_worker.sh deploy wrangler.production.toml"
             }')"
           response_file="$(mktemp)"
           code="$(curl --silent --show-error             --output "$response_file"             --write-out "%{http_code}"             --request POST             --header "Content-Type: application/json"             --header "Authorization: Bearer $OIDC_TOKEN"             --data "$payload"             "$APPFACTORY_URL/infrastructure/worker")"
@@ -142,8 +142,8 @@ jobs:
               repository: $repository,
               environment: "staging",
               rootDirectory: "/backend",
-              buildCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
-              deployCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh deploy wrangler.production.toml",
+              buildCommand: "bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
+              deployCommand: "bash scripts/package_worker.sh deploy wrangler.production.toml",
               migration: {
                 recipe: "python-alembic"
               }
