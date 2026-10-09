@@ -21,4 +21,7 @@ __all__ = [
     "PayloadCMSAdapter",
     "PublicationPolicyError",
     "PublishingService",
+    "TrigenysInsightCMSAdapter",
 ]
+
+from editorial_os_api.publishing.trigenys_insight import TrigenysInsightCMSAdapter
