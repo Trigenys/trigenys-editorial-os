@@ -109,7 +109,13 @@ class OperatorConsoleService:
             summaries: list[OperatorRunSummary] = []
             for run in runs:
                 topic = self._latest_topic(session, run.id)
-                summaries.append(self._summary(run, topic))
+                summaries.append(
+                    self._summary(
+                        run,
+                        topic,
+                        source_names=self._topic_source_names(session, topic),
+                    )
+                )
             return summaries
 
     def detail(self, workflow_run_id: UUID) -> OperatorRunDetail:
@@ -194,7 +200,11 @@ class OperatorConsoleService:
             )
 
             return OperatorRunDetail(
-                run=self._summary(run, topic),
+                run=self._summary(
+                    run,
+                    topic,
+                    source_names=self._topic_source_names(session, topic),
+                ),
                 gate_artifact=self._gate_artifact(
                     session,
                     run,
