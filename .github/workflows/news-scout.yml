@@ -6,7 +6,9 @@ on:
     paths:
       - ".github/workflows/news-scout.yml"
       - "scripts/news_scout.py"
+      - "scripts/news_radar.py"
       - "backend/src/editorial_os_api/scout/**"
+      - "backend/src/editorial_os_api/editorial_intelligence/**"
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
@@ -122,6 +124,9 @@ jobs:
             args+=(--force)
           fi
           python scripts/news_scout.py scan "${args[@]}"
+
+      - name: Build News Radar shortlist
+        run: python scripts/news_radar.py promote --lookback-hours 24 --max-clusters 8
 
       - name: Collection summary
         if: always()
