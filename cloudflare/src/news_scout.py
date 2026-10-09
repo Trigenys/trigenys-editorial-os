@@ -25,9 +25,9 @@ from editorial_os_api.scout.news_registry import NEWS_REGISTRY_ID, seed_news_sou
 from editorial_os_api.scout.registry import SourceRegistry
 
 CANARY_SOURCE_KEYS = (
-    "digital-business-africa",
-    "ecomatin",
     "techcabal",
+    "techcentral",
+    "nairametrics",
     "reuters",
     "bleeping-computer",
 )
