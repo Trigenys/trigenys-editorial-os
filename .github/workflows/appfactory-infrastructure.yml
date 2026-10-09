@@ -6,6 +6,14 @@ on:
     branches: [main]
     paths:
       - ".appfactory/staging-infrastructure.json"
+      - ".github/workflows/appfactory-infrastructure.yml"
+      - "backend/**"
+      - "cloudflare/**"
+      - "src/**"
+      - "index.html"
+      - "package.json"
+      - "vite.config.ts"
+      - "tsconfig.json"
 
 permissions:
   contents: read
@@ -42,6 +50,7 @@ jobs:
             .database.profile == "trigenys-editorial-os-staging" and
             .database.binding == "HYPERDRIVE" and
             .database.migration == "python-alembic" and
+            .frontend.deploymentLabel == "staging" and
             .costPolicy.requiresPaidCompute == false and
             .costPolicy.awsEc2 == false and
             .costPolicy.cloudflareContainers == false
@@ -69,8 +78,8 @@ jobs:
               repository: $repository,
               environment: "staging",
               rootDirectory: "/backend",
-              buildCommand: "bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
-              deployCommand: "bash scripts/package_worker.sh deploy wrangler.production.toml"
+              buildCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
+              deployCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh deploy wrangler.production.toml"
             }')"
           response_file="$(mktemp)"
           code="$(curl --silent --show-error             --output "$response_file"             --write-out "%{http_code}"             --request POST             --header "Content-Type: application/json"             --header "Authorization: Bearer $OIDC_TOKEN"             --data "$payload"             "$APPFACTORY_URL/infrastructure/worker")"
@@ -133,8 +142,8 @@ jobs:
               repository: $repository,
               environment: "staging",
               rootDirectory: "/backend",
-              buildCommand: "bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
-              deployCommand: "bash scripts/package_worker.sh deploy wrangler.production.toml",
+              buildCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh dry-run wrangler.production.toml ../worker-dist-production",
+              deployCommand: "VITE_DEPLOYMENT_LABEL=staging bash scripts/package_worker.sh deploy wrangler.production.toml",
               migration: {
                 recipe: "python-alembic"
               }
@@ -165,5 +174,7 @@ jobs:
             echo "- Environment: staging"
             echo "- Hyperdrive: configured"
             echo "- Alembic: release-gated"
+            echo "- Frontend label: staging"
+            echo "- Operator auth: runtime secret, never bundled"
             echo "- AWS EC2: not used"
           } >> "$GITHUB_STEP_SUMMARY"
