@@ -415,6 +415,8 @@ class OperatorConsoleService:
         self,
         run: WorkflowRun,
         topic: TopicCandidate | None,
+        *,
+        source_names: list[str] | None = None,
     ) -> OperatorRunSummary:
         pending_gate = self.workflow_engine.pending_gate(run.id)
         return OperatorRunSummary(
@@ -427,6 +429,16 @@ class OperatorConsoleService:
             topic_title=topic.title if topic is not None else None,
             topic_decision=topic.decision if topic is not None else None,
             topic_urgency=topic.urgency if topic is not None else None,
+            topic_composite_score=(
+                topic.composite_score if topic is not None else None
+            ),
+            topic_proposed_angle=(
+                topic.proposed_angle if topic is not None else None
+            ),
+            topic_proposed_format=(
+                topic.proposed_format if topic is not None else None
+            ),
+            topic_sources=source_names or [],
             pending_gate=pending_gate.value if pending_gate is not None else None,
             created_at=run.created_at,
             updated_at=run.updated_at,
