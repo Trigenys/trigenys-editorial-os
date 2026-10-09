@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 import json
 
 import asgi
-from workers import Response, WorkerEntrypoint
+from workers import WorkerEntrypoint
 
 from editorial_os_api.config import Settings
 from editorial_os_api.main import create_app
-from news_scout import run_news_scout_canary
+from news_scout import CANARY_SOURCE_KEYS, run_news_scout_canary
 
 
 def _text(value: object | None) -> str | None:
@@ -69,13 +69,6 @@ class Default(WorkerEntrypoint):
     """Cloudflare transport adapter around the canonical FastAPI application."""
 
     async def fetch(self, request):
-        path = urlparse(str(request.url)).path
-        if path == "/__news_scout_canary_wHCj5fxmYZSwMKGHvibASIWHxyZzKPacgT7aP4o5uNY":
-            if str(request.method).upper() != "GET":
-                return Response("Method Not Allowed", status=405)
-            result = await run_news_scout_canary(_settings_for_env(self.env), force=True)
-            return Response.json(result)
-
         application = getattr(self, "_editorial_os_app", None)
         if application is None:
             application = create_app(_settings_for_env(self.env))
@@ -94,8 +87,15 @@ class Default(WorkerEntrypoint):
                 sort_keys=True,
             )
         )
+        source_key = CANARY_SOURCE_KEYS[
+            (int(controller.scheduledTime) // 180_000) % len(CANARY_SOURCE_KEYS)
+        ]
         try:
-            result = await run_news_scout_canary(_settings_for_env(self.env), force=False)
+            result = await run_news_scout_canary(
+                _settings_for_env(self.env),
+                source_keys=(source_key,),
+                force=False,
+            )
         except Exception as exc:
             print(
                 json.dumps(
@@ -114,6 +114,7 @@ class Default(WorkerEntrypoint):
                 {
                     "event": "news_scout_cron_completed",
                     "cron": str(controller.cron),
+                    "source_key": source_key,
                     "result": result,
                 },
                 sort_keys=True,
