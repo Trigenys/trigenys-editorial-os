@@ -120,6 +120,8 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v7
+      - name: Test Cloudflare Access request bridge without external dependencies
+        run: python -m unittest discover -s cloudflare/tests -p "test_*.py" -v
       - name: Prove AppFactory Python Worker package without deploying
         working-directory: backend
         run: |
