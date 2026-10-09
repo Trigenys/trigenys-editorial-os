@@ -161,17 +161,6 @@ type Filters = {
 };
 
 const deploymentLabel = import.meta.env.VITE_DEPLOYMENT_LABEL ?? "local";
-const requiresOperatorAuth = deploymentLabel !== "local";
-const operatorSessionKey = "trigenys-editorial-os.operator-token";
-
-function withOperatorAuthorization(token: string, init: RequestInit = {}): RequestInit {
-  const headers = new Headers(init.headers);
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  return { ...init, headers };
-}
-
 const initialFilters: Filters = {
   vertical: "",
   status: "",
@@ -252,19 +241,14 @@ function App() {
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [operatorId, setOperatorId] = useState("operator");
-  const [operatorTokenInput, setOperatorTokenInput] = useState("");
-  const [operatorToken, setOperatorToken] = useState(() => {
-    try {
-      return window.sessionStorage.getItem(operatorSessionKey) ?? "";
-    } catch {
-      return "";
-    }
-  });
   const [reason, setReason] = useState("");
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Cloudflare Access authenticates the entire Worker before this UI loads.
+  // The API uses the Access assertion at the edge; no token belongs in the browser.
+
 
   const loadRuns = useCallback(async (activeFilters: Filters) => {
     setLoadingRuns(true);
@@ -283,10 +267,7 @@ function App() {
       params.set("updated_before", new Date(`${activeFilters.updatedBefore}T23:59:59`).toISOString());
     }
     try {
-      const response = await fetch(
-        `/api/operator/runs?${params.toString()}`,
-        withOperatorAuthorization(operatorToken),
-      );
+      const response = await fetch(`/api/operator/runs?${params.toString()}`);
       const payload = await readJson<RunSummary[]>(response);
       setRuns(payload);
       setSelectedId((current) => {
@@ -301,16 +282,13 @@ function App() {
     } finally {
       setLoadingRuns(false);
     }
-  }, [operatorToken]);
+  }, []);
 
   const loadDetail = useCallback(async (runId: string) => {
     setLoadingDetail(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/operator/runs/${runId}`,
-        withOperatorAuthorization(operatorToken),
-      );
+      const response = await fetch(`/api/operator/runs/${runId}`);
       const payload = await readJson<RunDetail>(response);
       setDetail(payload);
     } catch (requestError) {
@@ -319,15 +297,11 @@ function App() {
     } finally {
       setLoadingDetail(false);
     }
-  }, [operatorToken]);
+  }, []);
 
   useEffect(() => {
-    if (requiresOperatorAuth && !operatorToken) {
-      setLoadingRuns(false);
-      return;
-    }
     void loadRuns(initialFilters);
-  }, [loadRuns, operatorToken]);
+  }, [loadRuns]);
 
   useEffect(() => {
     if (selectedId) {
@@ -353,16 +327,16 @@ function App() {
     try {
       const response = await fetch(
         `/api/operator/runs/${detail.run.id}/gate`,
-        withOperatorAuthorization(operatorToken, {
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-          outcome,
-          actor_id: operatorId.trim(),
-          reason: reason.trim() || null,
+            outcome,
+            actor_id: operatorId.trim(),
+            reason: reason.trim() || null,
             details: {},
           }),
-        }),
+        },
       );
       const payload = await readJson<RunDetail>(response);
       setDetail(payload);
@@ -382,14 +356,14 @@ function App() {
     try {
       const response = await fetch(
         `/api/operator/runs/${detail.run.id}/recover`,
-        withOperatorAuthorization(operatorToken, {
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-          actor_id: operatorId.trim(),
+            actor_id: operatorId.trim(),
             reason: reason.trim() || null,
           }),
-        }),
+        },
       );
       const payload = await readJson<RunDetail>(response);
       setDetail(payload);
@@ -400,33 +374,6 @@ function App() {
     } finally {
       setActionBusy(false);
     }
-  }
-
-  function unlockOperatorConsole() {
-    const token = operatorTokenInput.trim();
-    if (!token) return;
-    try {
-      window.sessionStorage.setItem(operatorSessionKey, token);
-    } catch {
-      // The console can still work for this render when storage is unavailable.
-    }
-    setOperatorToken(token);
-    setOperatorTokenInput("");
-    setError(null);
-  }
-
-  function lockOperatorConsole() {
-    try {
-      window.sessionStorage.removeItem(operatorSessionKey);
-    } catch {
-      // Ignore storage failures and clear the in-memory credential.
-    }
-    setOperatorToken("");
-    setOperatorTokenInput("");
-    setRuns([]);
-    setSelectedId(null);
-    setDetail(null);
-    setError(null);
   }
 
   function applyFilters(event: FormEvent) {
@@ -481,42 +428,11 @@ function App() {
         </nav>
 
         <div className="operator-identity">
-          {requiresOperatorAuth && (
-            <>
-              <label htmlFor="operator-token">Staging access token</label>
-              <input
-                id="operator-token"
-                type="password"
-                autoComplete="off"
-                value={operatorTokenInput}
-                onChange={(event) => setOperatorTokenInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") unlockOperatorConsole();
-                }}
-                placeholder={operatorToken ? "Authenticated for this tab" : "Paste access token"}
-              />
-              <div className="operator-auth-actions">
-                <button
-                  className="primary-button"
-                  type="button"
-                  disabled={!operatorTokenInput.trim()}
-                  onClick={unlockOperatorConsole}
-                >
-                  Unlock
-                </button>
-                {operatorToken && (
-                  <button className="ghost-button" type="button" onClick={lockOperatorConsole}>
-                    Lock
-                  </button>
-                )}
-              </div>
-              <small>
-                {operatorToken
-                  ? "Credential kept in session storage for this tab only."
-                  : "Required in staging. It is never bundled into the frontend."}
-              </small>
-            </>
-          )}
+          <div className="operator-auth-note">
+            <strong>Cloudflare Access</strong>
+            <small>Session secured by email verification.</small>
+            <a href="/cdn-cgi/access/logout">Sign out</a>
+          </div>
 
           <label htmlFor="operator-id">Operator identity</label>
           <input
@@ -539,7 +455,6 @@ function App() {
           <button
             className="ghost-button"
             type="button"
-            disabled={requiresOperatorAuth && !operatorToken}
             onClick={() => void loadRuns(filters)}
           >
             Refresh
@@ -626,9 +541,7 @@ function App() {
             <div className="run-list">
               {!loadingRuns && runs.length === 0 && (
                 <div className="empty-state">
-                  {requiresOperatorAuth && !operatorToken
-                    ? "Unlock the staging console from the sidebar."
-                    : "No runs match these filters."}
+                  No runs match these filters.
                 </div>
               )}
               {runs.map((run) => (
