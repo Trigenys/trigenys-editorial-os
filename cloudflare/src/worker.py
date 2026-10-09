@@ -95,7 +95,7 @@ class Default(WorkerEntrypoint):
             )
         )
         try:
-            result = await run_news_scout_canary(_settings_for_env(env), force=False)
+            result = await run_news_scout_canary(_settings_for_env(self.env), force=False)
         except Exception as exc:
             print(
                 json.dumps(
