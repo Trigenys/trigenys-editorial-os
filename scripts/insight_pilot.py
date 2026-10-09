@@ -7,11 +7,11 @@ from decimal import Decimal
 from uuid import UUID
 
 from editorial_os_api.persistence.session import get_session_factory
-from editorial_os_api.scout.news_registry import seed_news_sources
 from editorial_os_api.pilot import (
     PilotMetricsService,
     seed_approved_sources,
 )
+from editorial_os_api.scout.news_registry import seed_news_sources
 
 
 def _json_default(value: object) -> str:
