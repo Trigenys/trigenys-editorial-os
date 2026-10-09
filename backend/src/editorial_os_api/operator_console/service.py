@@ -80,6 +80,7 @@ class OperatorConsoleService:
         status: WorkflowStatus | None = None,
         risk: str | None = None,
         topic_decision: str | None = None,
+        policy_version: str | None = None,
         updated_after: datetime | None = None,
         updated_before: datetime | None = None,
         limit: int = 50,
@@ -96,6 +97,10 @@ class OperatorConsoleService:
                 statement = statement.where(WorkflowRun.updated_at >= updated_after)
             if updated_before is not None:
                 statement = statement.where(WorkflowRun.updated_at <= updated_before)
+            if policy_version:
+                statement = statement.where(
+                    WorkflowRun.policy_version == policy_version
+                )
             if topic_decision:
                 statement = statement.where(
                     WorkflowRun.id.in_(
@@ -426,6 +431,7 @@ class OperatorConsoleService:
             risk_class=run.risk_class,
             confidence_class=run.confidence_class,
             state_version=run.state_version,
+            policy_version=run.policy_version,
             topic_title=topic.title if topic is not None else None,
             topic_decision=topic.decision if topic is not None else None,
             topic_urgency=topic.urgency if topic is not None else None,
