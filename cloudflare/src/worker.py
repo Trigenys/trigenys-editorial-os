@@ -84,11 +84,35 @@ class Default(WorkerEntrypoint):
         return await asgi.fetch(application, request, self.env)
 
     async def scheduled(self, controller, env, ctx):
-        result = await run_news_scout_canary(_settings_for_env(env), force=False)
         print(
             json.dumps(
                 {
-                    "event": "news_scout_cron",
+                    "event": "news_scout_cron_started",
+                    "cron": str(controller.cron),
+                    "scheduled_time": str(controller.scheduledTime),
+                },
+                sort_keys=True,
+            )
+        )
+        try:
+            result = await run_news_scout_canary(_settings_for_env(env), force=False)
+        except Exception as exc:
+            print(
+                json.dumps(
+                    {
+                        "event": "news_scout_cron_failed",
+                        "cron": str(controller.cron),
+                        "error_type": type(exc).__name__,
+                        "error": str(exc)[:500],
+                    },
+                    sort_keys=True,
+                )
+            )
+            raise
+        print(
+            json.dumps(
+                {
+                    "event": "news_scout_cron_completed",
                     "cron": str(controller.cron),
                     "result": result,
                 },
