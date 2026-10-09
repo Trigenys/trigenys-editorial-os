@@ -32,11 +32,15 @@ def test_listing_adapter_keeps_article_like_links_and_deduplicates() -> None:
     <html><body>
       <nav><a href="/category/tech">Technology category</a></nav>
       <article><a href="/article-one">A serious technology story from Cameroon</a></article>
-      <article><a href="/article-one#comments">A serious technology story from Cameroon</a></article>
+      <article>
+        <a href="/article-one#comments">A serious technology story from Cameroon</a>
+      </article>
       <article><a href="https://example.test/article-two?utm_source=home">
         Another sufficiently descriptive business technology headline
       </a></article>
-      <a href="https://social.example/elsewhere">A very long external headline that should be ignored</a>
+      <a href="https://social.example/elsewhere">
+        A very long external headline that should be ignored
+      </a>
     </body></html>
     """
 
