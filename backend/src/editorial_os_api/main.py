@@ -42,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.observability = observability
+    application.state.settings = settings
     application.add_middleware(CorrelationMiddleware)
     application.include_router(operator_router)
 
