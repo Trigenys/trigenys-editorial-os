@@ -5,7 +5,15 @@ from secrets import compare_digest
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 
 from editorial_os_api.domain.enums import WorkflowStatus
 from editorial_os_api.operator_console.models import (
@@ -20,6 +28,7 @@ from editorial_os_api.operator_console.service import (
     OperatorRunNotFoundError,
 )
 from editorial_os_api.persistence.session import get_session_factory
+
 
 def _authenticate_operator(
     request: Request,
