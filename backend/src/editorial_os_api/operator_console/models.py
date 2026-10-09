@@ -30,6 +30,10 @@ class OperatorRunSummary(OperatorModel):
     topic_title: str | None = None
     topic_decision: str | None = None
     topic_urgency: str | None = None
+    topic_composite_score: int | None = None
+    topic_proposed_angle: str | None = None
+    topic_proposed_format: str | None = None
+    topic_sources: list[str] = Field(default_factory=list)
     pending_gate: str | None = None
     created_at: datetime
     updated_at: datetime
