@@ -349,7 +349,7 @@ class NewsRadarService:
             term
             for term in terms
             if re.search(
-                rf"(?<!\\w){re.escape(term.casefold())}(?!\\w)",
+                rf"(?<!\w){re.escape(term.casefold())}(?!\w)",
                 text,
                 flags=re.UNICODE,
             )
