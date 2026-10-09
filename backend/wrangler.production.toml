@@ -17,3 +17,6 @@ run_worker_first = [
   "/redoc/*",
   "/openapi.json"
 ]
+
+[triggers]
+crons = ["*/15 * * * *"]
