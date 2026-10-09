@@ -330,7 +330,13 @@ class NewsRadarService:
         business_hits = len(cls._term_hits(text, _AFRICA_BUSINESS_TERMS))
         region = str(source.config.get("region") or "")
         local_bonus = 4 if region == "cameroon" else 2 if region == "africa" else 0
-        discovery_weight = int(source.config.get("discovery_weight") or 0)
+        raw_weight = source.config.get("discovery_weight")
+        if isinstance(raw_weight, int):
+            discovery_weight = raw_weight
+        elif isinstance(raw_weight, str) and raw_weight.isdigit():
+            discovery_weight = int(raw_weight)
+        else:
+            discovery_weight = 0
         return strong_hits * 20 + business_hits * 6 + local_bonus + discovery_weight // 20
 
     @classmethod
