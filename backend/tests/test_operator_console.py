@@ -9,7 +9,8 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from editorial_os_api.main import app
+from editorial_os_api.config import Settings
+from editorial_os_api.main import app, create_app
 from editorial_os_api.persistence.models import (
     GateDecision,
     ModelUsageRecord,
@@ -203,3 +204,52 @@ def test_recovery_is_rejected_when_workflow_state_does_not_allow_it() -> None:
 
     assert response.status_code == 409
     assert "not legal" in response.json()["detail"].lower()
+
+
+def test_staging_operator_api_requires_bearer_token() -> None:
+    protected = TestClient(
+        create_app(
+            Settings(
+                environment="staging",
+                operator_api_token="operator-secret",
+                langfuse_enabled=False,
+                posthog_enabled=False,
+                payload_enabled=False,
+                postiz_enabled=False,
+                n8n_enabled=False,
+                remotion_enabled=False,
+            )
+        )
+    )
+
+    missing = protected.get("/api/operator/runs")
+    assert missing.status_code == 401
+
+    invalid = protected.get(
+        "/api/operator/runs",
+        headers={"Authorization": "Bearer wrong-secret"},
+    )
+    assert invalid.status_code == 401
+
+
+def test_staging_operator_api_fails_closed_without_configured_secret() -> None:
+    protected = TestClient(
+        create_app(
+            Settings(
+                environment="staging",
+                operator_api_token=None,
+                langfuse_enabled=False,
+                posthog_enabled=False,
+                payload_enabled=False,
+                postiz_enabled=False,
+                n8n_enabled=False,
+                remotion_enabled=False,
+            )
+        )
+    )
+
+    response = protected.get(
+        "/api/operator/runs",
+        headers={"Authorization": "Bearer anything"},
+    )
+    assert response.status_code == 503

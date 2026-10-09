@@ -59,6 +59,9 @@ def _settings_for_env(env: object) -> Settings:
         postiz_enabled=False,
         n8n_enabled=False,
         remotion_enabled=False,
+        operator_api_token=_text(
+            getattr(env, "EDITORIAL_OS_OPERATOR_TOKEN", None)
+        ),
     )
 
 

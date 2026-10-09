@@ -45,6 +45,8 @@ from editorial_os_api.persistence.models import (
     GateDecision,
     ModelUsageRecord,
     Publication,
+    Source,
+    SourceItem,
     TopicCandidate,
     WorkflowAction,
     WorkflowRun,
@@ -78,6 +80,7 @@ class OperatorConsoleService:
         status: WorkflowStatus | None = None,
         risk: str | None = None,
         topic_decision: str | None = None,
+        policy_version: str | None = None,
         updated_after: datetime | None = None,
         updated_before: datetime | None = None,
         limit: int = 50,
@@ -94,6 +97,10 @@ class OperatorConsoleService:
                 statement = statement.where(WorkflowRun.updated_at >= updated_after)
             if updated_before is not None:
                 statement = statement.where(WorkflowRun.updated_at <= updated_before)
+            if policy_version:
+                statement = statement.where(
+                    WorkflowRun.policy_version == policy_version
+                )
             if topic_decision:
                 statement = statement.where(
                     WorkflowRun.id.in_(
@@ -107,7 +114,13 @@ class OperatorConsoleService:
             summaries: list[OperatorRunSummary] = []
             for run in runs:
                 topic = self._latest_topic(session, run.id)
-                summaries.append(self._summary(run, topic))
+                summaries.append(
+                    self._summary(
+                        run,
+                        topic,
+                        source_names=self._topic_source_names(session, topic),
+                    )
+                )
             return summaries
 
     def detail(self, workflow_run_id: UUID) -> OperatorRunDetail:
@@ -192,7 +205,11 @@ class OperatorConsoleService:
             )
 
             return OperatorRunDetail(
-                run=self._summary(run, topic),
+                run=self._summary(
+                    run,
+                    topic,
+                    source_names=self._topic_source_names(session, topic),
+                ),
                 gate_artifact=self._gate_artifact(
                     session,
                     run,
@@ -403,6 +420,8 @@ class OperatorConsoleService:
         self,
         run: WorkflowRun,
         topic: TopicCandidate | None,
+        *,
+        source_names: list[str] | None = None,
     ) -> OperatorRunSummary:
         pending_gate = self.workflow_engine.pending_gate(run.id)
         return OperatorRunSummary(
@@ -412,12 +431,42 @@ class OperatorConsoleService:
             risk_class=run.risk_class,
             confidence_class=run.confidence_class,
             state_version=run.state_version,
+            policy_version=run.policy_version,
             topic_title=topic.title if topic is not None else None,
             topic_decision=topic.decision if topic is not None else None,
             topic_urgency=topic.urgency if topic is not None else None,
+            topic_composite_score=(
+                topic.composite_score if topic is not None else None
+            ),
+            topic_proposed_angle=(
+                topic.proposed_angle if topic is not None else None
+            ),
+            topic_proposed_format=(
+                topic.proposed_format if topic is not None else None
+            ),
+            topic_sources=source_names or [],
             pending_gate=pending_gate.value if pending_gate is not None else None,
             created_at=run.created_at,
             updated_at=run.updated_at,
+        )
+
+    @staticmethod
+    def _topic_source_names(
+        session: Session,
+        topic: TopicCandidate | None,
+    ) -> list[str]:
+        if topic is None or not topic.source_item_ids:
+            return []
+
+        ids = [UUID(value) for value in topic.source_item_ids]
+        return list(
+            session.scalars(
+                select(Source.name)
+                .join(SourceItem, SourceItem.source_id == Source.id)
+                .where(SourceItem.id.in_(ids))
+                .distinct()
+                .order_by(Source.name)
+            )
         )
 
     @staticmethod

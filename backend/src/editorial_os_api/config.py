@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     n8n_webhook_url: str | None = None
     n8n_bearer_token: str | None = None
     remotion_enabled: bool = False
+    operator_api_token: str | None = None
 
 
 @lru_cache
