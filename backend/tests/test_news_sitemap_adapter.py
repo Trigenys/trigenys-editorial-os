@@ -58,8 +58,15 @@ def test_news_sitemap_adapter_follows_latest_child_and_extracts_news_metadata() 
         if str(request.url).endswith("news-sitemap-index.xml"):
             return httpx.Response(200, text=index, headers={"content-type": "application/xml"})
         if str(request.url).endswith("news-new.xml"):
-            return httpx.Response(200, text=child, headers={"content-type": "application/xml"})
-        return httpx.Response(200, text="<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9' />")
+            return httpx.Response(
+                200,
+                text=child,
+                headers={"content-type": "application/xml"},
+            )
+        return httpx.Response(
+            200,
+            text="<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9' />",
+        )
 
     adapter = NewsSitemapAdapter(
         client=httpx.Client(transport=httpx.MockTransport(handler)),
