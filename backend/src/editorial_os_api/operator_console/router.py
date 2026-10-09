@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from editorial_os_api.domain.enums import WorkflowStatus
 from editorial_os_api.operator_console.models import (
@@ -23,12 +23,13 @@ from editorial_os_api.persistence.session import get_session_factory
 router = APIRouter(prefix="/api/operator", tags=["operator"])
 
 
-def _service() -> OperatorConsoleService:
-    return OperatorConsoleService(get_session_factory())
+def _service(request: Request) -> OperatorConsoleService:
+    return OperatorConsoleService(get_session_factory(request.app.state.settings))
 
 
 @router.get("/runs", response_model=list[OperatorRunSummary])
 def list_runs(
+    request: Request,
     vertical: str | None = None,
     run_status: Annotated[WorkflowStatus | None, Query(alias="status")] = None,
     risk: str | None = None,
@@ -37,7 +38,7 @@ def list_runs(
     updated_before: datetime | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[OperatorRunSummary]:
-    return _service().list_runs(
+    return _service(request).list_runs(
         vertical=vertical,
         status=run_status,
         risk=risk,
@@ -49,9 +50,9 @@ def list_runs(
 
 
 @router.get("/runs/{workflow_run_id}", response_model=OperatorRunDetail)
-def run_detail(workflow_run_id: UUID) -> OperatorRunDetail:
+def run_detail(workflow_run_id: UUID, request: Request) -> OperatorRunDetail:
     try:
-        return _service().detail(workflow_run_id)
+        return _service(request).detail(workflow_run_id)
     except OperatorRunNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -62,10 +63,11 @@ def run_detail(workflow_run_id: UUID) -> OperatorRunDetail:
 @router.post("/runs/{workflow_run_id}/gate", response_model=OperatorRunDetail)
 def decide_gate(
     workflow_run_id: UUID,
-    request: GateActionRequest,
+    action: GateActionRequest,
+    request: Request,
 ) -> OperatorRunDetail:
     try:
-        return _service().decide_gate(workflow_run_id, request)
+        return _service(request).decide_gate(workflow_run_id, action)
     except OperatorRunNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -81,10 +83,11 @@ def decide_gate(
 @router.post("/runs/{workflow_run_id}/recover", response_model=OperatorRunDetail)
 def recover_run(
     workflow_run_id: UUID,
-    request: RecoveryActionRequest,
+    action: RecoveryActionRequest,
+    request: Request,
 ) -> OperatorRunDetail:
     try:
-        return _service().recover(workflow_run_id, request)
+        return _service(request).recover(workflow_run_id, action)
     except OperatorRunNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
