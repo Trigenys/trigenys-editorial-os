@@ -37,6 +37,8 @@ def _source(
     discovery_weight: int,
     interval_seconds: int = 3600,
     collection_mode: str = "feed-preferred",
+    kind: SourceKind = SourceKind.WEB,
+    publisher_url: str | None = None,
 ) -> NewsSourceSpec:
     return NewsSourceSpec(
         key=key,
@@ -46,7 +48,7 @@ def _source(
         discovery_weight=discovery_weight,
         registration=SourceRegistration(
             name=name,
-            kind=SourceKind.WEB,
+            kind=kind,
             base_url=url,
             trust_tier=tier,
             default_evidence_tier=tier,
@@ -63,6 +65,7 @@ def _source(
                 "topics": list(topics),
                 "discovery_weight": discovery_weight,
                 "collection_mode": collection_mode,
+                "publisher_url": publisher_url or url,
                 "store_full_text": False,
                 "scrape_policy": "respect-robots-and-terms",
             },
@@ -83,6 +86,8 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("business", "finance", "economy", "energy", "telecoms"),
         discovery_weight=95,
         interval_seconds=1800,
+        collection_mode="listing-page",
+        publisher_url="https://ecomatin.net/",
     ),
     _source(
         key="digital-business-africa",
@@ -95,6 +100,8 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("technology", "telecoms", "digital-policy", "startups", "cybersecurity"),
         discovery_weight=98,
         interval_seconds=1800,
+        collection_mode="listing-page",
+        publisher_url="https://www.digitalbusiness.africa/",
     ),
     _source(
         key="journal-du-cameroun",
@@ -160,7 +167,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
     _source(
         key="techcabal",
         name="TechCabal",
-        url="https://techcabal.com/",
+        url="https://techcabal.com/feed/",
         locale="en",
         tier=EvidenceTier.E3,
         region="africa",
@@ -168,6 +175,8 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("technology", "startups", "fintech", "telecoms", "ai", "digital-policy"),
         discovery_weight=98,
         interval_seconds=1800,
+        kind=SourceKind.RSS,
+        publisher_url="https://techcabal.com/",
     ),
     _source(
         key="techpoint-africa",
@@ -257,7 +266,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
     _source(
         key="reuters",
         name="Reuters",
-        url="https://www.reuters.com/",
+        url="https://www.reuters.com/arc/outboundfeeds/news-sitemap-index/?outputType=xml",
         locale="en",
         tier=EvidenceTier.E4,
         region="global",
@@ -265,7 +274,8 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("business", "technology", "markets", "telecoms", "ai", "cybersecurity"),
         discovery_weight=100,
         interval_seconds=1800,
-        collection_mode="metadata-preferred",
+        collection_mode="news-sitemap",
+        publisher_url="https://www.reuters.com/",
     ),
     _source(
         key="bloomberg",
@@ -331,7 +341,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
     _source(
         key="bleeping-computer",
         name="BleepingComputer",
-        url="https://www.bleepingcomputer.com/",
+        url="https://www.bleepingcomputer.com/feed/",
         locale="en",
         tier=EvidenceTier.E3,
         region="global",
@@ -339,6 +349,8 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("cybersecurity", "ransomware", "vulnerabilities", "incident-response"),
         discovery_weight=97,
         interval_seconds=900,
+        kind=SourceKind.RSS,
+        publisher_url="https://www.bleepingcomputer.com/",
     ),
     _source(
         key="krebs-on-security",
