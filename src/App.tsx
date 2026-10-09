@@ -223,6 +223,15 @@ function statusTone(status: string) {
 }
 
 async function readJson<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      response.ok
+        ? "The server returned an unexpected response."
+        : `Request failed with HTTP ${response.status}.`,
+    );
+  }
+
   const payload = (await response.json()) as T | { detail?: string };
   if (!response.ok) {
     const detail =
