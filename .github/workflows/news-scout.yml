@@ -1,0 +1,131 @@
+name: News Scout
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Ignore per-source backoff for this manual canary run"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: news-scout-staging
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APPFACTORY_URL: https://appfactory-api.lawrynnjennifer.workers.dev
+      REPOSITORY: Trigenys/trigenys-editorial-os
+      EDITORIAL_OS_ENVIRONMENT: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install Editorial OS
+        run: python -m pip install -e "./backend"
+
+      - name: Lease private Neon connection from AppFactory
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const token = await core.getIDToken('appfactory-api');
+            core.setSecret(token);
+            const endpoint =
+              process.env.APPFACTORY_URL + '/infrastructure/database-lease';
+            const expectedRepo = process.env.REPOSITORY;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
+            let response;
+            try {
+              response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                  Authorization: 'Bearer ' + token,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ repository: expectedRepo }),
+                signal: controller.signal
+              });
+            } finally {
+              clearTimeout(timeout);
+            }
+
+            let payload;
+            try {
+              payload = await response.json();
+            } catch {
+              throw new Error(
+                'AppFactory database lease returned invalid JSON (HTTP '
+                + response.status + ').'
+              );
+            }
+
+            if (!response.ok || payload.status !== 'READY') {
+              const code = typeof payload.error === 'string'
+                ? payload.error.replace(/[^A-Z0-9_]/g, '').slice(0, 80)
+                : 'UNKNOWN';
+              throw new Error(
+                'AppFactory database lease unavailable: '
+                + code + ' (HTTP ' + response.status + ').'
+              );
+            }
+
+            if (
+              payload.repository !== expectedRepo ||
+              payload.database !== 'editorial_os_staging' ||
+              typeof payload.databaseUrl !== 'string' ||
+              !/^postgres(?:ql)?:\/\//.test(payload.databaseUrl)
+            ) {
+              throw new Error('AppFactory returned an unexpected database lease.');
+            }
+
+            core.setSecret(payload.databaseUrl);
+            const sqlalchemyUrl = payload.databaseUrl.replace(
+              /^postgres(?:ql)?:\/\//,
+              'postgresql+psycopg://'
+            );
+            core.setSecret(sqlalchemyUrl);
+            core.exportVariable('EDITORIAL_OS_DATABASE_URL', sqlalchemyUrl);
+
+      - name: Run News Scout canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" &&
+                "${{ inputs.force }}" == "true" ]]; then
+            args+=(--force)
+          fi
+          python scripts/news_scout.py scan "${args[@]}"
+
+      - name: Collection summary
+        if: always()
+        run: |
+          {
+            echo "### Trigenys Insight News Scout"
+            echo
+            echo "- Runtime: GitHub Actions"
+            echo "- Database credential: short-lived AppFactory OIDC lease"
+            echo "- Database: Neon editorial_os_staging"
+            echo "- Cloudflare paid compute: not required"
+            echo "- Schedule: every 30 minutes"
+          } >> "$GITHUB_STEP_SUMMARY"
