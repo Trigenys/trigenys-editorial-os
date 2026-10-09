@@ -65,6 +65,7 @@ jobs:
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
       - name: Bootstrap managed staging Worker
+        if: hashFiles('.appfactory/worker-infrastructure.staging.json') == ''
         id: worker_bootstrap
         shell: bash
         env:
