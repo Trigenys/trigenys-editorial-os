@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import re
 from typing import Any
 
 from sqlalchemy import select
@@ -93,6 +94,17 @@ _AFRICA_BUSINESS_TERMS = (
     "regulator",
 )
 
+_SPECIALIST_VERTICAL_SOURCES = frozenset(
+    {
+        "digital-business-africa",
+        "mybroadband",
+        "techcentral",
+        "bleeping-computer",
+        "krebs-on-security",
+        "dark-reading",
+    }
+)
+
 _BLOCKED_SOFT_TOPICS = (
     "prince harry",
     "royal",
@@ -113,11 +125,16 @@ def insight_news_policy() -> VerticalIntelligencePolicy:
         version=NEWS_RADAR_VERTICAL_VERSION,
         eligible_locales=["fr", "en"],
         priority_terms=[
-            "ai",
+            "artificial intelligence",
             "intelligence artificielle",
+            "tech",
             "cloud",
             "cybersecurity",
             "cybersécurité",
+            "ransomware",
+            "malware",
+            "vulnerability",
+            "data breach",
             "telecom",
             "télécom",
             "fintech",
@@ -127,10 +144,9 @@ def insight_news_policy() -> VerticalIntelligencePolicy:
             "data center",
             "datacenter",
             "e-commerce",
+            "payment",
             "paiement",
-            "payments",
             "mobile money",
-            "infrastructure",
             "software",
             "internet",
             "5g",
@@ -299,6 +315,10 @@ class NewsRadarService:
         if blocked_hits:
             return False
 
+        source_key = str(source.config.get("source_key") or "")
+        if source_key in _SPECIALIST_VERTICAL_SOURCES:
+            return True
+
         region = str(source.config.get("region") or "")
         business_hits = cls._term_hits(text, _AFRICA_BUSINESS_TERMS)
         return region in {"cameroon", "africa"} and bool(business_hits)
@@ -319,7 +339,15 @@ class NewsRadarService:
 
     @staticmethod
     def _term_hits(text: str, terms: tuple[str, ...]) -> set[str]:
-        return {term for term in terms if term.casefold() in text}
+        return {
+            term
+            for term in terms
+            if re.search(
+                rf"(?<!\\w){re.escape(term.casefold())}(?!\\w)",
+                text,
+                flags=re.UNICODE,
+            )
+        }
 
     @staticmethod
     def _summary(item: SourceItem) -> str:
