@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from secrets import compare_digest
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 
 from editorial_os_api.domain.enums import WorkflowStatus
 from editorial_os_api.operator_console.models import (
@@ -20,7 +21,40 @@ from editorial_os_api.operator_console.service import (
 )
 from editorial_os_api.persistence.session import get_session_factory
 
-router = APIRouter(prefix="/api/operator", tags=["operator"])
+def _authenticate_operator(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> None:
+    settings = request.app.state.settings
+    if settings.environment not in {"staging", "production"}:
+        return
+
+    expected = settings.operator_api_token
+    if not expected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Operator Console authentication is not configured.",
+        )
+
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Operator Console authentication is required.",
+        )
+
+    supplied = authorization.removeprefix("Bearer ").strip()
+    if not supplied or not compare_digest(supplied, expected):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Operator Console credential.",
+        )
+
+
+router = APIRouter(
+    prefix="/api/operator",
+    tags=["operator"],
+    dependencies=[Depends(_authenticate_operator)],
+)
 
 
 def _service(request: Request) -> OperatorConsoleService:
