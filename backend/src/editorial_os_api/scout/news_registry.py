@@ -86,7 +86,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("business", "finance", "economy", "energy", "telecoms"),
         discovery_weight=95,
         interval_seconds=1800,
-        collection_mode="listing-page",
+        collection_mode="browser-required",
         publisher_url="https://ecomatin.net/",
     ),
     _source(
@@ -100,7 +100,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("technology", "telecoms", "digital-policy", "startups", "cybersecurity"),
         discovery_weight=98,
         interval_seconds=1800,
-        collection_mode="listing-page",
+        collection_mode="browser-required",
         publisher_url="https://www.digitalbusiness.africa/",
     ),
     _source(
@@ -205,7 +205,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
     _source(
         key="techcentral",
         name="TechCentral",
-        url="https://techcentral.co.za/",
+        url="https://techcentral.co.za/feed/",
         locale="en",
         tier=EvidenceTier.E3,
         region="africa",
@@ -213,11 +213,13 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("telecoms", "cloud", "cybersecurity", "enterprise-tech", "regulation"),
         discovery_weight=92,
         interval_seconds=1800,
+        kind=SourceKind.RSS,
+        publisher_url="https://techcentral.co.za/",
     ),
     _source(
         key="nairametrics",
         name="Nairametrics",
-        url="https://nairametrics.com/",
+        url="https://nairametrics.com/feed/",
         locale="en",
         tier=EvidenceTier.E3,
         region="africa",
@@ -225,6 +227,8 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("finance", "fintech", "business", "economy", "markets"),
         discovery_weight=93,
         interval_seconds=1800,
+        kind=SourceKind.RSS,
+        publisher_url="https://nairametrics.com/",
     ),
     _source(
         key="african-business",

@@ -362,6 +362,8 @@ class ScoutAgent:
         observed_at: datetime,
     ) -> NormalizedSourceItem:
         canonical_url = canonicalize_url(raw_item.url)
+        store_full_text = bool(source.config.get("store_full_text", True))
+        body = normalized_text(raw_item.body) or None if store_full_text else None
         return NormalizedSourceItem(
             source_id=source.id,
             source_fetch_id=fetch_id,
@@ -376,7 +378,7 @@ class ScoutAgent:
             content_hash=content_fingerprint(raw_item, canonical_url),
             locale=raw_item.locale or source.locale,
             extracted_payload={
-                "body": normalized_text(raw_item.body) or None,
+                "body": body,
                 "summary": normalized_text(raw_item.summary) or None,
                 "payload": dict(raw_item.payload),
             },

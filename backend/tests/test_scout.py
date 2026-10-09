@@ -34,6 +34,7 @@ from editorial_os_api.scout.contracts import (
     ManualUrlInput,
     PageExtraction,
     RawFetchBatch,
+    RawSourceItem,
     SourceRegistration,
     SourceSnapshot,
 )
@@ -178,6 +179,48 @@ def test_same_feed_item_twice_produces_one_canonical_signal_and_two_fetches() ->
     assert all(fetch.raw_payload == RSS_FIXTURE for fetch in fetches)
     assert all(fetch.raw_sha256 is not None for fetch in fetches)
 
+
+
+def test_news_source_can_discard_feed_body_but_keep_summary() -> None:
+    source = _register(
+        redact_raw_content=True,
+        config={"store_full_text": False},
+    )
+    observed_at = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
+    batch = RawFetchBatch(
+        adapter="rss-atom",
+        requested_url=source.base_url or "",
+        raw_payload="<rss>fixture</rss>",
+        items=[
+            RawSourceItem(
+                external_id="fixture-news-1",
+                url="https://example.com/news/fixture",
+                title="A useful technology signal",
+                body="This is the complete publisher article and must not be retained.",
+                summary="A short discovery summary.",
+                published_at=observed_at,
+                locale="en",
+            )
+        ],
+    )
+
+    result = ScoutAgent(get_session_factory()).persist_batch(
+        source.id,
+        source_snapshot=source,
+        batch=batch,
+        requested_url=batch.requested_url,
+        observed_at=observed_at,
+    )
+
+    assert result.status == "SUCCEEDED"
+    with get_session_factory()() as session:
+        item = session.scalar(
+            select(SourceItem).where(SourceItem.source_id == source.id)
+        )
+        assert item is not None
+        assert item.raw_content is None
+        assert item.extracted_payload["body"] is None
+        assert item.extracted_payload["summary"] == "A short discovery summary."
 
 def test_redacted_source_keeps_fetch_hash_but_not_raw_payload() -> None:
     source = _register(redact_raw_content=True)

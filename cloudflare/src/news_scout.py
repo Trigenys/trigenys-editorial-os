@@ -21,13 +21,13 @@ from editorial_os_api.scout.adapters.listing import ListingPageAdapter
 from editorial_os_api.scout.adapters.sitemap import NewsSitemapAdapter
 from editorial_os_api.scout.contracts import RawFetchBatch, SourceSnapshot
 from editorial_os_api.scout.errors import SourceAdapterError
-from editorial_os_api.scout.news_registry import NEWS_REGISTRY_ID, seed_news_sources
+from editorial_os_api.scout.news_registry import NEWS_REGISTRY_ID
 from editorial_os_api.scout.registry import SourceRegistry
 
 CANARY_SOURCE_KEYS = (
-    "digital-business-africa",
-    "ecomatin",
     "techcabal",
+    "techcentral",
+    "nairametrics",
     "reuters",
     "bleeping-computer",
 )
@@ -181,13 +181,14 @@ async def _batch_for(source: SourceSnapshot) -> RawFetchBatch:
 
 def _source_rows(
     session_factory: sessionmaker[Session],
+    source_keys: tuple[str, ...],
 ) -> dict[str, Source]:
     with session_factory() as session:
         rows = list(
             session.scalars(
                 select(Source).where(
                     Source.config["registry_id"].astext == NEWS_REGISTRY_ID,
-                    Source.config["source_key"].astext.in_(CANARY_SOURCE_KEYS),
+                    Source.config["source_key"].astext.in_(source_keys),
                 )
             )
         )
@@ -197,13 +198,14 @@ def _source_rows(
 async def run_news_scout_canary(
     settings: Settings,
     *,
+    source_keys: tuple[str, ...] | None = None,
     force: bool = False,
 ) -> dict[str, Any]:
     session_factory = get_session_factory(settings)
-    seed_news_sources(session_factory)
+    requested = source_keys or CANARY_SOURCE_KEYS
 
-    rows = _source_rows(session_factory)
-    missing = sorted(set(CANARY_SOURCE_KEYS) - set(rows))
+    rows = _source_rows(session_factory, requested)
+    missing = sorted(set(requested) - set(rows))
     if missing:
         raise RuntimeError(f"Missing News Scout sources: {', '.join(missing)}")
 
@@ -212,7 +214,7 @@ async def run_news_scout_canary(
     now = datetime.now(UTC)
     results: dict[str, Any] = {}
 
-    for key in CANARY_SOURCE_KEYS:
+    for key in requested:
         row = rows[key]
         snapshot = registry.get(row.id)
         eligible, skipped_reason = _due(snapshot, force=force, now=now)
