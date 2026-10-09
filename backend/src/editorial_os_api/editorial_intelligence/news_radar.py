@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -21,7 +22,101 @@ from editorial_os_api.editorial_intelligence.scoring import (
 from editorial_os_api.persistence.models import Source, SourceItem, WorkflowRun
 from editorial_os_api.scout.news_registry import NEWS_REGISTRY_ID
 
-NEWS_RADAR_VERTICAL_VERSION = "2026.10-pilot.1"
+NEWS_RADAR_VERTICAL_VERSION = "2026.10-pilot.2"
+
+_STRONG_VERTICAL_TERMS = (
+    "ai",
+    "artificial intelligence",
+    "intelligence artificielle",
+    "cloud",
+    "cybersecurity",
+    "cybersécurité",
+    "cyber",
+    "ransomware",
+    "malware",
+    "hackers",
+    "hacking",
+    "data breach",
+    "breach",
+    "vulnerability",
+    "vulnerab",
+    "zero-day",
+    "exploit",
+    "oauth",
+    "software",
+    "saas",
+    "api",
+    "data center",
+    "datacenter",
+    "telecom",
+    "télécom",
+    "5g",
+    "broadband",
+    "internet",
+    "satellite",
+    "fintech",
+    "neobank",
+    "mobile money",
+    "stablecoin",
+    "blockchain",
+    "crypto",
+    "e-commerce",
+    "ecommerce",
+    "digital",
+    "numérique",
+    "semiconductor",
+    "chip",
+    "gaming",
+)
+
+_AFRICA_BUSINESS_TERMS = (
+    "bank",
+    "banker",
+    "finance",
+    "financial",
+    "funding",
+    "raises",
+    "investment",
+    "investor",
+    "venture",
+    "acquisition",
+    "merger",
+    "market",
+    "economy",
+    "economic",
+    "business",
+    "payment",
+    "paiement",
+    "cash",
+    "energy",
+    "infrastructure",
+    "regulation",
+    "regulator",
+)
+
+_SPECIALIST_VERTICAL_SOURCES = frozenset(
+    {
+        "digital-business-africa",
+        "mybroadband",
+        "techcentral",
+        "bleeping-computer",
+        "krebs-on-security",
+        "dark-reading",
+    }
+)
+
+_BLOCKED_SOFT_TOPICS = (
+    "prince harry",
+    "royal",
+    "celebrity",
+    "museum",
+    "painting",
+    "football",
+    "soccer",
+    "dating",
+    "romance",
+    "fashion",
+)
 
 
 def insight_news_policy() -> VerticalIntelligencePolicy:
@@ -30,11 +125,16 @@ def insight_news_policy() -> VerticalIntelligencePolicy:
         version=NEWS_RADAR_VERTICAL_VERSION,
         eligible_locales=["fr", "en"],
         priority_terms=[
-            "ai",
+            "artificial intelligence",
             "intelligence artificielle",
+            "tech",
             "cloud",
             "cybersecurity",
             "cybersécurité",
+            "ransomware",
+            "malware",
+            "vulnerability",
+            "data breach",
             "telecom",
             "télécom",
             "fintech",
@@ -44,10 +144,9 @@ def insight_news_policy() -> VerticalIntelligencePolicy:
             "data center",
             "datacenter",
             "e-commerce",
+            "payment",
             "paiement",
-            "payments",
             "mobile money",
-            "infrastructure",
             "software",
             "internet",
             "5g",
@@ -97,6 +196,16 @@ class NewsRadarService:
                 )
             )
 
+        eligible_rows = [
+            (item, source)
+            for item, source in rows
+            if (item.locale or source.locale) in policy.eligible_locales
+            and self._eligible_signal(item, source)
+        ]
+        strength_by_id = {
+            item.id: self._signal_strength(item, source)
+            for item, source in eligible_rows
+        }
         documents = [
             SignalDocument(
                 id=item.id,
@@ -111,8 +220,7 @@ class NewsRadarService:
                 ),
                 observed_at_iso=item.observed_at.isoformat(),
             )
-            for item, source in rows
-            if (item.locale or source.locale) in policy.eligible_locales
+            for item, source in eligible_rows
         ]
 
         if not documents:
@@ -129,6 +237,7 @@ class NewsRadarService:
         )
         clusters.sort(
             key=lambda group: (
+                -max(strength_by_id.get(document.id, 0) for document in group),
                 -len(group),
                 -max(
                     datetime.fromisoformat(
@@ -147,7 +256,9 @@ class NewsRadarService:
         for group in clusters[:max_clusters]:
             key = cluster_key(group)
             week = observed_now.strftime("%G-W%V")
-            idempotency_key = f"news-radar:{week}:{key}"
+            idempotency_key = (
+                f"news-radar:{policy.version}:{week}:{key}"
+            )
 
             with self._session_factory.begin() as session:
                 run = session.scalar(
@@ -191,6 +302,58 @@ class NewsRadarService:
             "clusters": len(clusters),
             "created_runs": created_runs,
             "results": results,
+        }
+
+    @classmethod
+    def _eligible_signal(cls, item: SourceItem, source: Source) -> bool:
+        text = cls._signal_text(item)
+        strong_hits = cls._term_hits(text, _STRONG_VERTICAL_TERMS)
+        blocked_hits = cls._term_hits(text, _BLOCKED_SOFT_TOPICS)
+
+        if strong_hits:
+            return True
+        if blocked_hits:
+            return False
+
+        source_key = str(source.config.get("source_key") or "")
+        if source_key in _SPECIALIST_VERTICAL_SOURCES:
+            return True
+
+        region = str(source.config.get("region") or "")
+        business_hits = cls._term_hits(text, _AFRICA_BUSINESS_TERMS)
+        return region in {"cameroon", "africa"} and bool(business_hits)
+
+    @classmethod
+    def _signal_strength(cls, item: SourceItem, source: Source) -> int:
+        text = cls._signal_text(item)
+        strong_hits = len(cls._term_hits(text, _STRONG_VERTICAL_TERMS))
+        business_hits = len(cls._term_hits(text, _AFRICA_BUSINESS_TERMS))
+        region = str(source.config.get("region") or "")
+        local_bonus = 4 if region == "cameroon" else 2 if region == "africa" else 0
+        raw_weight = source.config.get("discovery_weight")
+        if isinstance(raw_weight, int):
+            discovery_weight = raw_weight
+        elif isinstance(raw_weight, str) and raw_weight.isdigit():
+            discovery_weight = int(raw_weight)
+        else:
+            discovery_weight = 0
+        return strong_hits * 20 + business_hits * 6 + local_bonus + discovery_weight // 20
+
+    @classmethod
+    def _signal_text(cls, item: SourceItem) -> str:
+        return f"{item.title or ''} {cls._summary(item)}".casefold()
+
+    @staticmethod
+    def _term_hits(text: str, terms: tuple[str, ...]) -> set[str]:
+        normalized = text.casefold()
+        return {
+            term
+            for term in terms
+            if re.search(
+                rf"(?<!\w){re.escape(term.casefold())}(?!\w)",
+                normalized,
+                flags=re.UNICODE,
+            )
         }
 
     @staticmethod
