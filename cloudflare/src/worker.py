@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import asgi
-from workers import WorkerEntrypoint
+from js import Headers, Request as JSRequest
+from workers import Response, WorkerEntrypoint
 
 from editorial_os_api.config import Settings
 from editorial_os_api.main import create_app
@@ -69,6 +70,28 @@ class Default(WorkerEntrypoint):
     """Cloudflare transport adapter around the canonical FastAPI application."""
 
     async def fetch(self, request):
+        # All Worker routes except the explicitly public health probes are
+        # protected by Cloudflare Access at the edge. Authenticated operator
+        # requests carry the Cloudflare-signed assertion; the legacy FastAPI
+        # bearer token is injected *only in the Worker*, never sent to a browser.
+        path = urlparse(str(request.url)).path
+        if path.startswith("/api/operator/"):
+            assertion = _text(request.headers.get("Cf-Access-Jwt-Assertion"))
+            if assertion is None:
+                return Response.json(
+                    {"detail": "Cloudflare Access authentication is required."},
+                    status=401,
+                )
+            operator_token = _text(getattr(self.env, "EDITORIAL_OS_OPERATOR_TOKEN", None))
+            if operator_token is None:
+                return Response.json(
+                    {"detail": "Operator authentication is not configured."},
+                    status=503,
+                )
+            headers = Headers.new(request.headers)
+            headers.set("Authorization", f"Bearer {operator_token}")
+            request = JSRequest.new(request, headers=headers)
+
         application = getattr(self, "_editorial_os_app", None)
         if application is None:
             application = create_app(_settings_for_env(self.env))
