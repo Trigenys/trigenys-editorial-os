@@ -7,8 +7,6 @@ on:
     paths:
       - ".appfactory/staging-infrastructure.json"
       - ".github/workflows/appfactory-infrastructure.yml"
-      - "backend/**"
-      - "cloudflare/**"
       - "src/**"
       - "index.html"
       - "package.json"
