@@ -127,6 +127,15 @@ button { cursor: pointer; }
   line-height: 1.4;
 }
 
+.operator-auth-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.operator-auth-actions button {
+  flex: 1;
+}
+
 .workspace {
   min-width: 0;
   padding: 28px;
@@ -737,7 +746,8 @@ h1 {
     align-items: center;
   }
 
-  .operator-identity small {
+  .operator-identity small,
+  .operator-auth-actions {
     grid-column: 2;
   }
 
