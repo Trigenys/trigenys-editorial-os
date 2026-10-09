@@ -34,6 +34,11 @@ export PATH="$HOME/.local/bin:$PATH"
 
 cd "$repo_root"
 npm install --ignore-scripts
+
+# The reviewed AppFactory brownfield recipe requires exact build/deploy commands.
+# Keep environment-specific frontend metadata inside the packaging script instead
+# of mutating those reviewed command strings.
+export VITE_DEPLOYMENT_LABEL="${VITE_DEPLOYMENT_LABEL:-staging}"
 npm run build
 python scripts/cloudflare/prepare_spike.py
 
