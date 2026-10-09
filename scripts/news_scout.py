@@ -13,6 +13,7 @@ from editorial_os_api.scout import ScoutAgent
 from editorial_os_api.scout.adapters.feed import RssAtomAdapter
 from editorial_os_api.scout.adapters.listing import ListingPageAdapter
 from editorial_os_api.scout.adapters.sitemap import NewsSitemapAdapter
+from editorial_os_api.scout.contracts import SourceAdapter
 from editorial_os_api.scout.news_registry import NEWS_REGISTRY_ID, seed_news_sources
 
 CANARY_SOURCE_KEYS = (
@@ -28,7 +29,7 @@ def _json_default(value: object) -> str:
     return str(value)
 
 
-def _adapter_for(source: Source):
+def _adapter_for(source: Source) -> SourceAdapter:
     mode = str(source.config.get("collection_mode") or "")
     kind = SourceKind(source.kind)
     if kind in {SourceKind.RSS, SourceKind.ATOM}:
