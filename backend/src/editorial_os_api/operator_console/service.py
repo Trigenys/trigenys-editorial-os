@@ -111,17 +111,39 @@ class OperatorConsoleService:
                 )
 
             runs = list(session.scalars(statement.limit(limit)))
-            summaries: list[OperatorRunSummary] = []
-            for run in runs:
-                topic = self._latest_topic(session, run.id)
-                summaries.append(
-                    self._summary(
-                        run,
-                        topic,
-                        source_names=self._topic_source_names(session, topic),
+            if not runs:
+                return []
+
+            run_ids = [run.id for run in runs]
+            topics = list(
+                session.scalars(
+                    select(TopicCandidate)
+                    .where(TopicCandidate.workflow_run_id.in_(run_ids))
+                    .order_by(
+                        TopicCandidate.workflow_run_id,
+                        TopicCandidate.version.desc(),
+                        TopicCandidate.updated_at.desc(),
                     )
                 )
-            return summaries
+            )
+
+            latest_topics: dict[UUID, TopicCandidate] = {}
+            for topic in topics:
+                latest_topics.setdefault(topic.workflow_run_id, topic)
+
+            topic_source_names = self._topic_source_name_map(
+                session,
+                list(latest_topics.values()),
+            )
+
+            return [
+                self._summary(
+                    run,
+                    latest_topics.get(run.id),
+                    source_names=topic_source_names.get(run.id, []),
+                )
+                for run in runs
+            ]
 
     def detail(self, workflow_run_id: UUID) -> OperatorRunDetail:
         with self.session_factory() as session:
@@ -423,7 +445,7 @@ class OperatorConsoleService:
         *,
         source_names: list[str] | None = None,
     ) -> OperatorRunSummary:
-        pending_gate = self.workflow_engine.pending_gate(run.id)
+        pending_gate = self.workflow_engine.pending_gate_for_run(run)
         return OperatorRunSummary(
             id=run.id,
             vertical_key=run.vertical_key,
@@ -449,6 +471,42 @@ class OperatorConsoleService:
             created_at=run.created_at,
             updated_at=run.updated_at,
         )
+
+    @staticmethod
+    def _topic_source_name_map(
+        session: Session,
+        topics: list[TopicCandidate],
+    ) -> dict[UUID, list[str]]:
+        topic_items: dict[UUID, list[UUID]] = {}
+        item_ids: set[UUID] = set()
+
+        for topic in topics:
+            parsed_ids = [UUID(str(value)) for value in topic.source_item_ids]
+            topic_items[topic.workflow_run_id] = parsed_ids
+            item_ids.update(parsed_ids)
+
+        if not item_ids:
+            return {topic.workflow_run_id: [] for topic in topics}
+
+        source_name_by_item = {
+            source_item_id: source_name
+            for source_item_id, source_name in session.execute(
+                select(SourceItem.id, Source.name)
+                .join(Source, SourceItem.source_id == Source.id)
+                .where(SourceItem.id.in_(item_ids))
+            )
+        }
+
+        return {
+            workflow_run_id: sorted(
+                {
+                    source_name_by_item[item_id]
+                    for item_id in ids
+                    if item_id in source_name_by_item
+                }
+            )
+            for workflow_run_id, ids in topic_items.items()
+        }
 
     @staticmethod
     def _topic_source_names(
