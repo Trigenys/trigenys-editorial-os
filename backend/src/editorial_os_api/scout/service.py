@@ -137,6 +137,40 @@ class ScoutAgent:
         )
         return self.ingest(source_id, adapter, force=force, now=now)
 
+    def persist_batch(
+        self,
+        source_id: UUID,
+        *,
+        source_snapshot: SourceSnapshot,
+        batch: RawFetchBatch,
+        requested_url: str,
+        observed_at: datetime | None = None,
+    ) -> ScoutIngestResult:
+        return self._persist_success(
+            source_id=source_id,
+            source_snapshot=source_snapshot,
+            batch=batch,
+            requested_url=requested_url,
+            observed_at=observed_at or utcnow(),
+        )
+
+    def record_failure(
+        self,
+        source_id: UUID,
+        *,
+        adapter_name: str,
+        requested_url: str,
+        error: SourceAdapterError,
+        observed_at: datetime | None = None,
+    ) -> ScoutIngestResult:
+        return self._record_failure(
+            source_id=source_id,
+            adapter_name=adapter_name,
+            requested_url=requested_url,
+            observed_at=observed_at or utcnow(),
+            error=error,
+        )
+
     def _persist_success(
         self,
         *,
