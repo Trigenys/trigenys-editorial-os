@@ -11,6 +11,7 @@ from editorial_os_api.persistence.models import Source
 from editorial_os_api.persistence.session import get_session_factory
 from editorial_os_api.scout import ScoutAgent
 from editorial_os_api.scout.adapters.feed import RssAtomAdapter
+from editorial_os_api.scout.adapters.listing import ListingPageAdapter
 from editorial_os_api.scout.adapters.sitemap import NewsSitemapAdapter
 from editorial_os_api.scout.news_registry import NEWS_REGISTRY_ID, seed_news_sources
 
@@ -34,6 +35,8 @@ def _adapter_for(source: Source):
         return RssAtomAdapter()
     if mode == "news-sitemap":
         return NewsSitemapAdapter()
+    if mode == "listing-page":
+        return ListingPageAdapter()
     raise RuntimeError(
         f"Source {source.config.get('source_key') or source.name} has no supported "
         f"News Scout transport (kind={kind.value}, mode={mode or 'none'})."
