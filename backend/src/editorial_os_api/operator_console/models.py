@@ -27,6 +27,7 @@ class OperatorRunSummary(OperatorModel):
     risk_class: str
     confidence_class: str
     state_version: int
+    policy_version: str
     topic_title: str | None = None
     topic_decision: str | None = None
     topic_urgency: str | None = None
