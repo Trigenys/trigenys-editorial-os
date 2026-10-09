@@ -9,6 +9,7 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from editorial_os_api import db as database
 from editorial_os_api.config import Settings
 from editorial_os_api.main import app, create_app
 from editorial_os_api.persistence.models import (
@@ -253,3 +254,27 @@ def test_staging_operator_api_fails_closed_without_configured_secret() -> None:
         headers={"Authorization": "Bearer anything"},
     )
     assert response.status_code == 503
+
+
+def test_hyperdrive_engine_does_not_pool_worker_request_sockets(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+
+    def fake_create_engine(*args, **kwargs):
+        calls.append({"args": args, "kwargs": kwargs})
+        return object()
+
+    database._engine_for.cache_clear()
+    monkeypatch.setattr(database, "create_engine", fake_create_engine)
+    database.get_engine(
+        Settings(
+            database_url="postgresql+pg8000://worker:secret@127.0.0.1:5432/editorial",
+            database_echo=False,
+        )
+    )
+
+    assert calls
+    kwargs = calls[0]["kwargs"]
+    assert isinstance(kwargs, dict)
+    assert kwargs["poolclass"].__name__ == "NullPool"
+    assert kwargs["connect_args"] == {"ssl_context": False}
+    database._engine_for.cache_clear()

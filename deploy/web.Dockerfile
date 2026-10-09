@@ -1,4 +1,4 @@
-FROM node:24-alpine AS build
+FROM public.ecr.aws/docker/library/node:24-alpine AS build
 
 WORKDIR /app
 COPY package.json tsconfig.json vite.config.ts index.html ./
@@ -10,7 +10,7 @@ ENV VITE_DEPLOYMENT_LABEL=$VITE_DEPLOYMENT_LABEL
 RUN npm install --ignore-scripts
 RUN npm run build
 
-FROM nginx:1.29-alpine
+FROM public.ecr.aws/docker/library/nginx:1.29-alpine
 
 COPY deploy/nginx.staging.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
