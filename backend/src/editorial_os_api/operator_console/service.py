@@ -423,6 +423,25 @@ class OperatorConsoleService:
         )
 
     @staticmethod
+    def _topic_source_names(
+        session: Session,
+        topic: TopicCandidate | None,
+    ) -> list[str]:
+        if topic is None or not topic.source_item_ids:
+            return []
+
+        ids = [UUID(value) for value in topic.source_item_ids]
+        return list(
+            session.scalars(
+                select(Source.name)
+                .join(SourceItem, SourceItem.source_id == Source.id)
+                .where(SourceItem.id.in_(ids))
+                .distinct()
+                .order_by(Source.name)
+            )
+        )
+
+    @staticmethod
     def _latest_topic(
         session: Session,
         workflow_run_id: UUID,
