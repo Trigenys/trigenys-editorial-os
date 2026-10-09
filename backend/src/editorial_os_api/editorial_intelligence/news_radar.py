@@ -345,12 +345,13 @@ class NewsRadarService:
 
     @staticmethod
     def _term_hits(text: str, terms: tuple[str, ...]) -> set[str]:
+        normalized = text.casefold()
         return {
             term
             for term in terms
             if re.search(
                 rf"(?<!\w){re.escape(term.casefold())}(?!\w)",
-                text,
+                normalized,
                 flags=re.UNICODE,
             )
         }
