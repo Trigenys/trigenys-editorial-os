@@ -8,8 +8,10 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.pool import NullPool
 
 from editorial_os_api.config import Settings
+from editorial_os_api.db import get_engine
 from editorial_os_api.main import app, create_app
 from editorial_os_api.persistence.models import (
     GateDecision,
@@ -253,3 +255,13 @@ def test_staging_operator_api_fails_closed_without_configured_secret() -> None:
         headers={"Authorization": "Bearer anything"},
     )
     assert response.status_code == 503
+
+
+def test_hyperdrive_engine_does_not_pool_worker_request_sockets() -> None:
+    engine = get_engine(
+        Settings(
+            database_url="postgresql+pg8000://worker:secret@127.0.0.1:5432/editorial",
+            database_echo=False,
+        )
+    )
+    assert isinstance(engine.pool, NullPool)
