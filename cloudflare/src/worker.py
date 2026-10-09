@@ -38,6 +38,9 @@ class Default(WorkerEntrypoint):
     async def fetch(self, request):
         application = getattr(self, "_editorial_os_app", None)
         if application is None:
+            payload_token = _text(
+                getattr(self.env, "EDITORIAL_OS_PAYLOAD_API_TOKEN", None)
+            )
             settings = Settings(
                 environment="staging",
                 deployment_label="cloudflare-worker",
@@ -45,15 +48,12 @@ class Default(WorkerEntrypoint):
                 database_echo=False,
                 langfuse_enabled=False,
                 posthog_enabled=False,
-                payload_enabled=_bool(
-                    getattr(self.env, "EDITORIAL_OS_PAYLOAD_ENABLED", None)
+                payload_enabled=bool(payload_token),
+                payload_base_url=(
+                    _text(getattr(self.env, "EDITORIAL_OS_PAYLOAD_BASE_URL", None))
+                    or "https://insight.trigenys.com"
                 ),
-                payload_base_url=_text(
-                    getattr(self.env, "EDITORIAL_OS_PAYLOAD_BASE_URL", None)
-                ),
-                payload_api_token=_text(
-                    getattr(self.env, "EDITORIAL_OS_PAYLOAD_API_TOKEN", None)
-                ),
+                payload_api_token=payload_token,
                 payload_collection=(
                     _text(getattr(self.env, "EDITORIAL_OS_PAYLOAD_COLLECTION", None))
                     or "posts"
