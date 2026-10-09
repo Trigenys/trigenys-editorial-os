@@ -108,6 +108,8 @@ class WorkflowEngine(Protocol):
 
     def pending_gate(self, workflow_run_id: UUID) -> GateKind | None: ...
 
+    def pending_gate_for_run(self, run: WorkflowRun) -> GateKind | None: ...
+
 
 class PostgresWorkflowEngine:
     def __init__(
@@ -277,7 +279,10 @@ class PostgresWorkflowEngine:
             run = session.get(WorkflowRun, workflow_run_id)
             if run is None:
                 raise WorkflowNotFoundError(str(workflow_run_id))
-            return self._pending_gate_for_run(run)
+            return self.pending_gate_for_run(run)
+
+    def pending_gate_for_run(self, run: WorkflowRun) -> GateKind | None:
+        return self._pending_gate_for_run(run)
 
     def _target_for_command(
         self,
