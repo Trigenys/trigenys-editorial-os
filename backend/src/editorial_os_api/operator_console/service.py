@@ -45,6 +45,8 @@ from editorial_os_api.persistence.models import (
     GateDecision,
     ModelUsageRecord,
     Publication,
+    Source,
+    SourceItem,
     TopicCandidate,
     WorkflowAction,
     WorkflowRun,
