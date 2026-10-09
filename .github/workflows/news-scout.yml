@@ -1,6 +1,12 @@
 name: News Scout
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/news-scout.yml"
+      - "scripts/news_scout.py"
+      - "backend/src/editorial_os_api/scout/**"
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
