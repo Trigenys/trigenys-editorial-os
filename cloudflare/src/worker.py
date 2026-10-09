@@ -3,7 +3,7 @@ from __future__ import annotations
 from urllib.parse import quote, urlparse
 
 import asgi
-from js import Headers, Request as JSRequest
+from js import Request as JSRequest
 from workers import Response, WorkerEntrypoint
 
 from editorial_os_api.config import Settings
@@ -88,9 +88,12 @@ class Default(WorkerEntrypoint):
                     {"detail": "Operator authentication is not configured."},
                     status=503,
                 )
-            headers = Headers.new(request.headers)
-            headers.set("Authorization", f"Bearer {operator_token}")
-            request = JSRequest.new(request, headers=headers)
+            # A JS Request constructor takes the original Request and an
+            # optional RequestInit *object*, not Python keyword arguments.
+            # Cloning first gives us writable headers without mutating the
+            # incoming request or exposing the server credential to the client.
+            request = JSRequest.new(request)
+            request.headers.set("Authorization", f"Bearer {operator_token}")
 
         application = getattr(self, "_editorial_os_app", None)
         if application is None:
