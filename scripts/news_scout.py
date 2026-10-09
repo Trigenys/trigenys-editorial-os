@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import asdict
 from typing import Any
 
 from sqlalchemy import select
@@ -67,7 +66,7 @@ def scan(source_keys: list[str], *, force: bool) -> int:
         source = by_key[key]
         adapter = _adapter_for(source)
         result = scout.ingest(source.id, adapter, force=force)
-        results[key] = asdict(result)
+        results[key] = result.model_dump(mode="json")
 
     print(json.dumps({"results": results}, indent=2, sort_keys=True, default=_json_default))
     failed = [key for key, result in results.items() if result["status"] == "FAILED"]
