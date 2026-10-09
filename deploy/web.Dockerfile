@@ -10,7 +10,7 @@ ENV VITE_DEPLOYMENT_LABEL=$VITE_DEPLOYMENT_LABEL
 RUN npm install --ignore-scripts
 RUN npm run build
 
-FROM nginx:1.29-alpine
+FROM public.ecr.aws/docker/library/nginx:1.29-alpine
 
 COPY deploy/nginx.staging.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
