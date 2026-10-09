@@ -103,24 +103,24 @@ def prepare_scenario(
 
     fetch_ids: list[UUID] = []
     for item in payload.sources:
-        result = scout.ingest_manual_url(
+        scout_result = scout.ingest_manual_url(
             source_ids[item.source_key],
             ManualUrlInput(url=item.url, locale=scenario.locale),
             extractor=extractor,
             force=True,
         )
-        if result.status != "SUCCEEDED" or result.fetch_id is None:
+        if scout_result.status != "SUCCEEDED" or scout_result.fetch_id is None:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail={
                     "message": "Scout ingestion failed.",
                     "source_key": item.source_key,
-                    "failure_kind": result.failure_kind,
-                    "retryable": result.retryable,
-                    "error": result.error_message,
+                    "failure_kind": scout_result.failure_kind,
+                    "retryable": scout_result.retryable,
+                    "error": scout_result.error_message,
                 },
             )
-        fetch_ids.append(result.fetch_id)
+        fetch_ids.append(scout_result.fetch_id)
 
     with session_factory() as session:
         source_item_ids = list(
@@ -182,7 +182,7 @@ def prepare_scenario(
         thresholds=DecisionThresholds(propose_min=0, watch_min=0),
         use_model_strategy=False,
     )
-    result = EditorialIntelligenceAgent(session_factory).analyze(
+    intelligence_result = EditorialIntelligenceAgent(session_factory).analyze(
         workflow_run_id,
         source_item_ids,
         policy=policy,
@@ -192,8 +192,8 @@ def prepare_scenario(
         scenario_key=scenario.key,
         workflow_run_id=workflow_run_id,
         source_item_ids=source_item_ids,
-        candidate_id=result.candidate_id,
-        candidate_version=result.candidate_version,
-        candidate_decision=result.decision.value,
-        pending_gate=result.pending_gate,
+        candidate_id=intelligence_result.candidate_id,
+        candidate_version=intelligence_result.candidate_version,
+        candidate_decision=intelligence_result.decision.value,
+        pending_gate=intelligence_result.pending_gate,
     )
