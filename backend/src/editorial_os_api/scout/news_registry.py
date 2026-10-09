@@ -78,7 +78,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
     _source(
         key="ecomatin",
         name="EcoMatin",
-        url="https://ecomatin.net/?feed=atom",
+        url="https://ecomatin.net/",
         locale="fr",
         tier=EvidenceTier.E3,
         region="cameroon",
@@ -86,13 +86,13 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("business", "finance", "economy", "energy", "telecoms"),
         discovery_weight=95,
         interval_seconds=1800,
-        kind=SourceKind.ATOM,
+        collection_mode="listing-page",
         publisher_url="https://ecomatin.net/",
     ),
     _source(
         key="digital-business-africa",
         name="Digital Business Africa",
-        url="https://www.digitalbusiness.africa/en/feed",
+        url="https://www.digitalbusiness.africa/",
         locale="fr",
         tier=EvidenceTier.E3,
         region="cameroon",
@@ -100,7 +100,7 @@ NEWS_SOURCES: tuple[NewsSourceSpec, ...] = (
         topics=("technology", "telecoms", "digital-policy", "startups", "cybersecurity"),
         discovery_weight=98,
         interval_seconds=1800,
-        kind=SourceKind.RSS,
+        collection_mode="listing-page",
         publisher_url="https://www.digitalbusiness.africa/",
     ),
     _source(
