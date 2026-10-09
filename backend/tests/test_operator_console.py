@@ -9,8 +9,8 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from editorial_os_api.config import Settings
 from editorial_os_api import db as database
+from editorial_os_api.config import Settings
 from editorial_os_api.main import app, create_app
 from editorial_os_api.persistence.models import (
     GateDecision,
