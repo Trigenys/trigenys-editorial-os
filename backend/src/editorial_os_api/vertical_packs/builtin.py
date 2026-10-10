@@ -185,10 +185,24 @@ def trigenys_insight_pilot_pack() -> VerticalPack:
     )
 
 
+def trigenys_insight_news_radar_pack() -> VerticalPack:
+    """The live News Radar uses pilot.2; editorial downstream must match it."""
+    return trigenys_insight_pilot_pack().model_copy(
+        update={
+            "version": "2026.10-pilot.2",
+            "metadata": {
+                "kind": "news-radar-staging-pilot",
+                "publication_mode": "payload-staging-only",
+            },
+        }
+    )
+
+
 _BUILTINS = {
     ("generic-demo", "1"): generic_demo_pack,
     ("trigenys-insight", "1"): trigenys_insight_pack,
     ("trigenys-insight", "2026.10-pilot.1"): trigenys_insight_pilot_pack,
+    ("trigenys-insight", "2026.10-pilot.2"): trigenys_insight_news_radar_pack,
 }
 
 
