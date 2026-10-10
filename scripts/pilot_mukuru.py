@@ -15,14 +15,16 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session, sessionmaker
-
 from editorial_os_api.config import Settings
 from editorial_os_api.content_agent import ContentAgent, ModelContentAdapter
 from editorial_os_api.domain.enums import GateKind, GateOutcome, WorkflowStatus
 from editorial_os_api.model_gateway import (
-    BudgetLedger, BudgetPolicy, ModelGateway, ModelPolicy, ModelRoute, ModelTask,
+    BudgetLedger,
+    BudgetPolicy,
+    ModelGateway,
+    ModelPolicy,
+    ModelRoute,
+    ModelTask,
 )
 from editorial_os_api.model_gateway.adapters.litellm import LiteLLMClient
 from editorial_os_api.persistence.models import (
@@ -34,12 +36,17 @@ from editorial_os_api.persistence.models import (
 )
 from editorial_os_api.persistence.session import get_session_factory
 from editorial_os_api.research_verification import (
-    ModelResearchAdapter, ResearchBudget, ResearchVerificationAgent, VerificationPolicy,
+    ModelResearchAdapter,
+    ResearchBudget,
+    ResearchVerificationAgent,
+    VerificationPolicy,
 )
 from editorial_os_api.scout import ScoutAgent
 from editorial_os_api.scout.adapters.manual import HttpPageExtractor
 from editorial_os_api.scout.contracts import ManualUrlInput
 from editorial_os_api.vertical_packs.builtin import get_builtin_vertical_pack
+from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
 
 
 RUN_ID = UUID("13624834-42e5-46e7-bda9-f1a5da72cd44")
