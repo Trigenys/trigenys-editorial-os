@@ -468,22 +468,19 @@ function App() {
           </div>
         </div>
 
-        <nav className="queue-nav" aria-label="Queues">
-          <button type="button" onClick={() => setQueueFilter("", "")}>
-            <span>All runs</span><b>{runs.length}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("PROPOSE")}>
-            <span>Propose</span><b>{runs.filter((run) => run.topic_decision === "PROPOSE").length}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("WATCH")}>
-            <span>Watch</span><b>{queueCounts.watch}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("", "BLOCKED")}>
-            <span>Blocked</span><b>{queueCounts.blocked}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("", "FAILED_RETRYABLE")}>
-            <span>Retryable</span><b>{queueCounts.retryable}</b>
-          </button>
+        <nav className="queue-nav" aria-label="Editorial queues">
+          {([
+            ["awaiting", "Needs review", queueCounts.waiting],
+            ["all", "All runs", runs.length],
+            ["watch", "Monitoring", queueCounts.watch],
+            ["blocked", "Blocked", queueCounts.blocked],
+            ["retryable", "Retryable", queueCounts.retryable],
+          ] as const).map(([view, label, count]) => (
+            <button key={view} type="button" className={queueView === view ? "active" : ""}
+              aria-pressed={queueView === view} onClick={() => chooseQueue(view)}>
+              <span>{label}</span><b>{count}</b>
+            </button>
+          ))}
         </nav>
 
         <div className="operator-identity">
@@ -508,82 +505,88 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Trigenys Editorial OS</p>
-            <h1>Control room</h1>
+            <h1>Editorial control room</h1>
+            <p className="workspace-subtitle">Review incoming stories, examine context and make informed decisions.</p>
             <span className="deployment-badge">{deploymentLabel}</span>
           </div>
-          <button
-            className="ghost-button"
-            type="button"
-            onClick={() => void loadRuns(filters)}
-          >
-            Refresh
+          <button className="ghost-button refresh-button" type="button"
+            disabled={loadingRuns} onClick={() => void loadRuns(filters)}>
+            {loadingRuns ? "Refreshing…" : "↻ Refresh"}
           </button>
         </header>
 
         <section className="summary-grid" aria-label="Queue summary">
-          <article><span>Visible runs</span><strong>{runs.length}</strong></article>
-          <article><span>Awaiting gate</span><strong>{queueCounts.waiting}</strong></article>
-          <article><span>Blocked</span><strong>{queueCounts.blocked}</strong></article>
-          <article><span>Retryable</span><strong>{queueCounts.retryable}</strong></article>
+          {([
+            ["awaiting", "Needs your review", queueCounts.waiting, "Decisions pending", "attention"],
+            ["watch", "Monitoring", queueCounts.watch, "Topics being watched", ""],
+            ["blocked", "Blocked", queueCounts.blocked, queueCounts.blocked ? "Needs intervention" : "No blockers", queueCounts.blocked ? "risk" : ""],
+            ["all", "Total runs", runs.length, "In current API results", ""],
+          ] as const).map(([view, label, count, description, tone]) => (
+            <button key={view} type="button"
+              className={`kpi-card ${tone} ${queueView === view ? "selected" : ""}`}
+              aria-pressed={queueView === view} onClick={() => chooseQueue(view)}>
+              <span className="kpi-label">{label}</span>
+              <strong>{loadingRuns && runs.length === 0 ? "—" : count}</strong>
+              <span className="kpi-description">{description}</span>
+            </button>
+          ))}
         </section>
 
-        <form className="filters" onSubmit={applyFilters}>
-          <input
-            value={filters.vertical}
-            onChange={(event) => setFilters({ ...filters, vertical: event.target.value })}
-            placeholder="Vertical"
-            aria-label="Vertical"
-          />
-          <select
-            value={filters.status}
-            onChange={(event) => setFilters({ ...filters, status: event.target.value })}
-            aria-label="Workflow status"
-          >
-            <option value="">All statuses</option>
-            {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-          </select>
-          <select
-            value={filters.risk}
-            onChange={(event) => setFilters({ ...filters, risk: event.target.value })}
-            aria-label="Risk class"
-          >
-            <option value="">All risks</option>
-            {["R0", "R1", "R2", "R3"].map((risk) => <option key={risk} value={risk}>{risk}</option>)}
-          </select>
-          <select
-            value={filters.topicDecision}
-            onChange={(event) => setFilters({ ...filters, topicDecision: event.target.value })}
-            aria-label="Topic decision"
-          >
-            <option value="">All topic decisions</option>
-            <option value="PROPOSE">PROPOSE</option>
-            <option value="WATCH">WATCH</option>
-            <option value="IGNORE">IGNORE</option>
-          </select>
-          <input
-            type="date"
-            value={filters.updatedAfter}
-            onChange={(event) => setFilters({ ...filters, updatedAfter: event.target.value })}
-            aria-label="Updated after"
-          />
-          <input
-            type="date"
-            value={filters.updatedBefore}
-            onChange={(event) => setFilters({ ...filters, updatedBefore: event.target.value })}
-            aria-label="Updated before"
-          />
-          <button className="primary-button" type="submit">Apply</button>
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => {
-              setFilters(initialFilters);
-              void loadRuns(initialFilters);
-            }}
-          >
-            Reset
-          </button>
-        </form>
+        <div className="filter-surface">
+          <div className="search-toolbar">
+            <label htmlFor="run-search">Search stories</label>
+            <input id="run-search" className="search-input" type="search"
+              placeholder="Title, vertical, angle or workflow ID…"
+              value={search} onChange={(event) => setSearch(event.target.value)} />
+            <span className="result-count" aria-live="polite">{visibleRuns.length} of {runs.length} shown</span>
+          </div>
+          <details className="advanced-filters">
+            <summary>Advanced filters <span>Vertical, status, risk and dates</span></summary>
+            <form className="filters" onSubmit={applyFilters}>
+              <label>Vertical
+                <input value={filters.vertical}
+                  onChange={(event) => setFilters({ ...filters, vertical: event.target.value })}
+                  placeholder="All verticals" />
+              </label>
+              <label>Status
+                <select value={filters.status}
+                  onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
+                  <option value="">All statuses</option>
+                  {statusOptions.map((status) => <option key={status} value={status}>{humanStatus(status)}</option>)}
+                </select>
+              </label>
+              <label>Risk
+                <select value={filters.risk}
+                  onChange={(event) => setFilters({ ...filters, risk: event.target.value })}>
+                  <option value="">All risks</option>
+                  {["R0", "R1", "R2", "R3"].map((risk) => <option key={risk} value={risk}>{risk}</option>)}
+                </select>
+              </label>
+              <label>Topic decision
+                <select value={filters.topicDecision}
+                  onChange={(event) => setFilters({ ...filters, topicDecision: event.target.value })}>
+                  <option value="">All decisions</option>
+                  <option value="PROPOSE">Propose</option><option value="WATCH">Watch</option>
+                  <option value="IGNORE">Ignore</option>
+                </select>
+              </label>
+              <label>Updated after
+                <input type="date" value={filters.updatedAfter}
+                  onChange={(event) => setFilters({ ...filters, updatedAfter: event.target.value })} />
+              </label>
+              <label>Updated before
+                <input type="date" value={filters.updatedBefore}
+                  onChange={(event) => setFilters({ ...filters, updatedBefore: event.target.value })} />
+              </label>
+              <div className="filter-actions">
+                <button className="primary-button" type="submit">Apply filters</button>
+                <button className="text-button" type="button" onClick={resetFilters}>Reset all</button>
+              </div>
+            </form>
+          </details>
+        </div>
+
+        {actionSuccess && <div className="success-banner" role="status">{actionSuccess}</div>}
 
         {error && <div className="error-banner" role="alert">{error}</div>}
 
@@ -591,34 +594,36 @@ function App() {
           <section className="run-list-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Queue</p>
-                <h2>Workflow runs</h2>
+                <p className="eyebrow">Editorial queue</p>
+                <h2>{queueView === "awaiting" ? "Awaiting a decision" : queueView === "all" ? "All workflow runs" : humanStatus(queueView)}</h2>
+                <p className="queue-helper">Actionable stories appear first.</p>
               </div>
-              {loadingRuns && <span className="loading-dot">Loading</span>}
+              {loadingRuns && <span className="loading-dot" role="status">Loading…</span>}
             </div>
 
             <div className="run-list">
-              {!loadingRuns && runs.length === 0 && (
+              {!loadingRuns && !error && visibleRuns.length === 0 && (
                 <div className="empty-state">
-                  No runs match these filters.
+                  No stories match this view. Try another queue or reset your filters.
                 </div>
               )}
-              {runs.map((run) => (
+              {visibleRuns.map((run) => (
                 <button
                   type="button"
-                  className={`run-card ${selectedId === run.id ? "selected" : ""}`}
+                  className={`run-card ${selectedId === run.id ? "selected" : ""} ${run.pending_gate ? "needs-review" : ""}`}
                   key={run.id}
+                  aria-pressed={selectedId === run.id}
                   onClick={() => setSelectedId(run.id)}
                 >
                   <div className="run-card-top">
-                    <span className={`status-pill ${statusTone(run.status)}`}>{run.status}</span>
-                    <span>{run.risk_class} · {run.confidence_class}</span>
+                    <span className={`status-pill ${statusTone(run.status)}`}>{humanStatus(run.status)}</span>
+                    <span className="risk-meta">Risk {run.risk_class}</span>
                   </div>
                   <strong>{run.topic_title ?? `Run ${shortId(run.id)}`}</strong>
-                  <p>{run.vertical_key} · {run.topic_decision ?? "No topic decision"}</p>
+                  <p>{run.vertical_key}{run.topic_urgency ? ` · ${run.topic_urgency} urgency` : ""}</p>
                   <div className="run-card-bottom">
                     <span>{formatDate(run.updated_at)}</span>
-                    {run.pending_gate && <b>Gate {run.pending_gate}</b>}
+                    {run.pending_gate && <b className="needs-decision-tag">Review gate {run.pending_gate} →</b>}
                   </div>
                 </button>
               ))}
