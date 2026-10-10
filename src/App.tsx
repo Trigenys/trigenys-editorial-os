@@ -314,7 +314,7 @@ function App() {
     } finally {
       setLoadingRuns(false);
     }
-  }, []);
+  }, [locale]);
 
   const loadDetail = useCallback(async (runId: string) => {
     const requestId = ++detailRequestId.current;
@@ -693,7 +693,7 @@ function App() {
                   <div>
                     <div className="detail-meta">
                       <span className={`status-pill ${statusTone(detail.run.status)}`}>
-                        {detail.run.status}
+                        {humanStatus(detail.run.status)}
                       </span>
                       <span>{detail.run.vertical_key}</span>
                       <span>{detail.run.risk_class}</span>
@@ -723,7 +723,7 @@ function App() {
                     </div>
                     {detail.run.topic_proposed_angle && (
                       <div className="editorial-angle">
-                        <span>{t("Proposed angle")}{detail.run.topic_proposed_format ? ` · ${detail.run.topic_proposed_format}` : ""}</span>
+                        <span>{t("Proposed angle")}{detail.run.topic_proposed_format ? ` · ${humanStatus(detail.run.topic_proposed_format)}` : ""}</span>
                         <p>{detail.run.topic_proposed_angle}</p>
                       </div>
                     )}
