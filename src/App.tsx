@@ -29,6 +29,10 @@ type RunSummary = {
   topic_title: string | null;
   topic_decision: string | null;
   topic_urgency: string | null;
+  topic_composite_score?: number | null;
+  topic_proposed_angle?: string | null;
+  topic_proposed_format?: string | null;
+  topic_sources?: string[];
   pending_gate: string | null;
   created_at: string;
   updated_at: string;
@@ -151,6 +155,8 @@ type RunDetail = {
   recovery_action: "RETRY" | "RESUME" | null;
 };
 
+type QueueView = "awaiting" | "all" | "watch" | "blocked" | "retryable";
+
 type Filters = {
   vertical: string;
   status: string;
@@ -202,6 +208,19 @@ function shortId(value: string) {
   return value.slice(0, 8);
 }
 
+function humanStatus(value: string) {
+  return value.replaceAll("_", " ").toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function safeSourceUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function statusTone(status: string) {
   if (["PUBLISHED", "DISTRIBUTED", "MEASURED", "TOPIC_APPROVED", "EDITORIAL_APPROVED", "PUBLISH_APPROVED"].includes(status)) {
     return "positive";
@@ -242,6 +261,11 @@ function App() {
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [operatorId, setOperatorId] = useState("operator");
   const [reason, setReason] = useState("");
+  const [search, setSearch] = useState("");
+  const [queueView, setQueueView] = useState<QueueView>("awaiting");
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
@@ -275,9 +299,7 @@ function App() {
         return payload[0]?.id ?? null;
       });
     } catch (requestError) {
-      setRuns([]);
-      setSelectedId(null);
-      setDetail(null);
+      // Keep the last good data; a failed refresh must not imply zero runs.
       setError(requestError instanceof Error ? requestError.message : "Unable to load runs.");
     } finally {
       setLoadingRuns(false);
@@ -304,7 +326,12 @@ function App() {
   }, [loadRuns]);
 
   useEffect(() => {
+    setPendingAction(null);
+    setReviewConfirmed(false);
+    setReason("");
+    setActionSuccess(null);
     if (selectedId) {
+      setDetail(null);
       void loadDetail(selectedId);
     } else {
       setDetail(null);
@@ -313,12 +340,36 @@ function App() {
 
   const queueCounts = useMemo(() => {
     return {
-      waiting: runs.filter((run) => run.pending_gate !== null).length,
+      waiting: runs.filter((run) => Boolean(run.pending_gate)).length,
       blocked: runs.filter((run) => run.status === "BLOCKED").length,
       retryable: runs.filter((run) => run.status === "FAILED_RETRYABLE").length,
       watch: runs.filter((run) => run.topic_decision === "WATCH").length,
     };
   }, [runs]);
+
+  const visibleRuns = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return runs.filter((run) => {
+      if (queueView === "awaiting" && !run.pending_gate) return false;
+      if (queueView === "watch" && run.topic_decision !== "WATCH") return false;
+      if (queueView === "blocked" && run.status !== "BLOCKED") return false;
+      if (queueView === "retryable" && run.status !== "FAILED_RETRYABLE") return false;
+      return !query || [
+        run.topic_title, run.vertical_key, run.topic_proposed_angle, run.status, run.id,
+      ].some((value) => value?.toLocaleLowerCase().includes(query));
+    }).sort((a, b) => Number(Boolean(b.pending_gate)) - Number(Boolean(a.pending_gate)) ||
+      Date.parse(b.updated_at) - Date.parse(a.updated_at));
+  }, [runs, queueView, search]);
+
+  useEffect(() => {
+    if (!visibleRuns.some((run) => run.id === selectedId)) {
+      setSelectedId(visibleRuns[0]?.id ?? null);
+    }
+  }, [visibleRuns, selectedId]);
+
+  const decisionRequiresNote = ["REJECTED", "REVISION_REQUESTED"].includes(pendingAction ?? "");
+  const canSubmitAction = reviewConfirmed && Boolean(operatorId.trim()) &&
+    (!decisionRequiresNote || reason.trim().length >= 10);
 
   async function submitGate(outcome: string) {
     if (!detail || !operatorId.trim()) return;
@@ -341,6 +392,9 @@ function App() {
       const payload = await readJson<RunDetail>(response);
       setDetail(payload);
       setReason("");
+      setReviewConfirmed(false);
+      setPendingAction(null);
+      setActionSuccess(`Decision recorded: ${humanStatus(outcome)}.`);
       await loadRuns(filters);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Gate action failed.");
@@ -368,6 +422,9 @@ function App() {
       const payload = await readJson<RunDetail>(response);
       setDetail(payload);
       setReason("");
+      setReviewConfirmed(false);
+      setPendingAction(null);
+      setActionSuccess("Recovery action recorded.");
       await loadRuns(filters);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Recovery failed.");
@@ -381,14 +438,16 @@ function App() {
     void loadRuns(filters);
   }
 
-  function setQueueFilter(decision: string, status: string = "") {
-    const next = {
-      ...filters,
-      topicDecision: decision,
-      status,
-    };
-    setFilters(next);
-    void loadRuns(next);
+  function chooseQueue(view: QueueView) {
+    setQueueView(view);
+    setPendingAction(null);
+  }
+
+  function resetFilters() {
+    setFilters(initialFilters);
+    setQueueView("awaiting");
+    setSearch("");
+    void loadRuns(initialFilters);
   }
 
   const gateActions =
