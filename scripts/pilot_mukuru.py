@@ -52,7 +52,13 @@ from sqlalchemy.orm import Session, sessionmaker
 RUN_ID = UUID("13624834-42e5-46e7-bda9-f1a5da72cd44")
 EXPECTED_TITLE = "The 20-metre neobank: How Mukuru is solving the gap between receiving cash and spending it"
 OFFICIAL_SOURCES = {
-    "GSMA": "https://www.gsma.com/sotir/",
+    # GSMA returned 403 from the official site to our GitHub collector on
+    # 2026-10-10. Preserve this failed source fetch in the audit trail, but do
+    # not attempt to work around their access restrictions.
+    "IFC Africa": (
+        "https://www.ifc.org/en/insights-reports/2024/"
+        "evolution-of-the-mobile-money-payment-market-in-tanzania"
+    ),
     "World Bank Cameroon": (
         "https://www.worldbank.org/en/news/press-release/2025/07/16/"
         "mobile-phone-technology-powers-saving-surge-in-developing-economies"
@@ -186,11 +192,13 @@ def enrich(sessions: sessionmaker[Session]) -> None:
     """Fetch two fixed institutional references, without touching human gates."""
     scout = ScoutAgent(sessions)
     extractor = HttpPageExtractor()
+    failures: list[str] = []
     for name, url in OFFICIAL_SOURCES.items():
         with sessions() as session:
             source = session.scalar(select(Source).where(Source.name == name))
             if source is None or not source.enabled:
-                raise RuntimeError(f"Approved source {name!r} is absent or disabled.")
+                failures.append(f"{name}: NOT_APPROVED")
+                continue
             source_id = source.id
         result = scout.ingest_manual_url(
             source_id,
@@ -198,16 +206,21 @@ def enrich(sessions: sessionmaker[Session]) -> None:
             extractor=extractor,
             force=True,
         )
-        if result.status != "SUCCEEDED":
-            raise RuntimeError(
-                f"Official source {name!r} ingestion failed: {result.failure_kind}"
-            )
         print(json.dumps({
             "source": name,
             "status": result.status,
             "created": result.created_count,
             "updated": result.updated_count,
+            "failure_kind": (
+                str(result.failure_kind) if result.failure_kind is not None else None
+            ),
         }))
+        if result.status != "SUCCEEDED":
+            failures.append(f"{name}: {result.failure_kind}")
+    if failures:
+        raise RuntimeError(
+            "Some approved sources could not be ingested: " + "; ".join(failures)
+        )
 
 
 def draft(sessions: sessionmaker[Session], snapshot: PilotPreflight) -> None:
