@@ -88,11 +88,11 @@ class Default(WorkerEntrypoint):
                     {"detail": "Operator authentication is not configured."},
                     status=503,
                 )
-            # A JS Request constructor takes the original Request and an
-            # optional RequestInit *object*, not Python keyword arguments.
-            # Cloning first gives us writable headers without mutating the
-            # incoming request or exposing the server credential to the client.
-            request = JSRequest.new(request)
+            # The workers-runtime-sdk wraps the native JS Request in a Python
+            # workers.Request. Passing that wrapper to js.Request.new() makes
+            # JavaScript interpret its repr as a URL (Worker error 1101).
+            # Pass its native js_object instead; this preserves method/body.
+            request = JSRequest.new(request.js_object)
             request.headers.set("Authorization", f"Bearer {operator_token}")
 
         application = getattr(self, "_editorial_os_app", None)

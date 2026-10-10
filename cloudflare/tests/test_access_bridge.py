@@ -1,8 +1,8 @@
-"""Contract tests for the Cloudflare Access / Python Worker request bridge.
+"""Cloudflare Access request bridge: reproduce the actual workers-runtime-sdk boundary.
 
-No Cloudflare credentials, database or network connection are required.
-The JS Request constructor mock accepts exactly the one positional argument
-used in production; passing an unsupported Python keyword breaks this test.
+The runtime passes a Python `workers.Request` wrapper, NOT a native
+JavaScript Request. Only `request.js_object` may be passed to js.Request.new().
+This test suite models that distinction so a regression fails without deploying.
 """
 
 from __future__ import annotations
@@ -26,22 +26,60 @@ class Headers(dict):
         )
 
     def set(self, key, value):
+        matching = [name for name in self if name.lower() == key.lower()]
+        for name in matching:
+            del self[name]
         self[key] = value
 
 
-class Request:
-    def __init__(self, path, headers=None):
+class NativeJSRequest:
+    """Models a real JavaScript Request object (not a Python Request)."""
+
+    def __init__(self, path, headers=None, *, method="GET", body=None):
         self.url = "https://example.workers.dev" + path
         self.headers = Headers(headers or {})
+        self.method = method
+        self.body = body
+
+
+class PythonSDKRequest:
+    """Matches workers.Request: .js_object is the native JS Request."""
+
+    def __init__(self, path, headers=None, *, method="GET", body=None):
+        self.js_object = NativeJSRequest(
+            path, headers, method=method, body=body
+        )
+
+    @property
+    def url(self):
+        return self.js_object.url
+
+    @property
+    def headers(self):
+        return self.js_object.headers
+
+    @property
+    def method(self):
+        return self.js_object.method
+
+    def __repr__(self):
+        return f"Request(method={self.method!r}, url={self.url!r})"
 
 
 class JSRequest:
     @staticmethod
     def new(original):
-        cloned = Request("/")
-        cloned.url = original.url
-        cloned.headers = Headers(original.headers)
-        return cloned
+        if not isinstance(original, NativeJSRequest):
+            # This was the actual production 500 from Cloudflare's logs.
+            raise TypeError(f"Invalid URL: {original!r}")
+        clone = NativeJSRequest(
+            "/",
+            original.headers,
+            method=original.method,
+            body=original.body,
+        )
+        clone.url = original.url
+        return clone
 
 
 class Response:
@@ -93,38 +131,60 @@ class OperatorAccessBridgeTests(unittest.TestCase):
             EDITORIAL_OS_OPERATOR_TOKEN="private-worker-token"
         )
 
+    def test_python_sdk_request_is_not_native_js_request(self):
+        wrapped = PythonSDKRequest("/api/operator/runs")
+        with self.assertRaisesRegex(TypeError, "Invalid URL"):
+            JSRequest.new(wrapped)
+
     def test_authenticated_requests_get_server_only_authorization(self):
-        incoming = Request(
+        incoming = PythonSDKRequest(
             "/api/operator/runs?limit=50",
-            {"Cf-Access-Jwt-Assertion": "verified-by-access-edge"},
+            {
+                "Cf-Access-Jwt-Assertion": "verified-by-access-edge",
+                "Authorization": "Bearer client-untrusted",
+            },
         )
         forwarded = asyncio.run(self.entrypoint.fetch(incoming))
-        self.assertIsNot(forwarded, incoming)
+        self.assertIsInstance(forwarded, NativeJSRequest)
+        self.assertIsNot(forwarded, incoming.js_object)
         self.assertEqual(
-            forwarded.headers.get("Authorization"),
-            "Bearer private-worker-token",
+            forwarded.headers.get("Authorization"), "Bearer private-worker-token"
         )
-        self.assertIsNone(incoming.headers.get("Authorization"))
         self.assertEqual(
-            forwarded.headers.get("Cf-Access-Jwt-Assertion"),
-            "verified-by-access-edge",
+            incoming.headers.get("Authorization"), "Bearer client-untrusted"
         )
+        self.assertEqual(
+            forwarded.headers.get("Cf-Access-Jwt-Assertion"), "verified-by-access-edge"
+        )
+        self.assertEqual(forwarded.url, incoming.url)
+
+    def test_post_body_and_method_survive_native_clone(self):
+        incoming = PythonSDKRequest(
+            "/api/operator/runs/123/gate",
+            {"Cf-Access-Jwt-Assertion": "verified-by-access-edge"},
+            method="POST",
+            body='{"outcome":"APPROVED"}',
+        )
+        forwarded = asyncio.run(self.entrypoint.fetch(incoming))
+        self.assertEqual(forwarded.method, "POST")
+        self.assertEqual(forwarded.body, incoming.js_object.body)
+        self.assertEqual(forwarded.headers.get("Authorization"), "Bearer private-worker-token")
 
     def test_missing_access_assertion_fails_closed(self):
-        result = asyncio.run(self.entrypoint.fetch(Request("/api/operator/runs")))
+        result = asyncio.run(self.entrypoint.fetch(PythonSDKRequest("/api/operator/runs")))
         self.assertEqual(result["status"], 401)
 
     def test_missing_server_secret_fails_closed(self):
         self.entrypoint.env.EDITORIAL_OS_OPERATOR_TOKEN = None
         result = asyncio.run(
             self.entrypoint.fetch(
-                Request("/api/operator/runs", {"Cf-Access-Jwt-Assertion": "token"})
+                PythonSDKRequest("/api/operator/runs", {"Cf-Access-Jwt-Assertion": "token"})
             )
         )
         self.assertEqual(result["status"], 503)
 
     def test_health_checks_do_not_require_a_session(self):
-        incoming = Request("/health/ready")
+        incoming = PythonSDKRequest("/health/ready")
         forwarded = asyncio.run(self.entrypoint.fetch(incoming))
         self.assertIs(forwarded, incoming)
 
