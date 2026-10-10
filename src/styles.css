@@ -1052,3 +1052,45 @@ h1 {
   .kpi-card { transition: none; }
   .kpi-card:hover { transform: none; }
 }
+
+/* Language preference: first-class keyboard accessible switch in the header. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.language-switch {
+  display: flex;
+  padding: 4px;
+  background: #e9f0eb;
+  border: 1px solid #d3e0d6;
+  border-radius: 11px;
+  gap: 3px;
+}
+.language-switch button {
+  min-width: 46px;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 750;
+  background: transparent;
+  color: #335943;
+}
+.language-switch button:hover { background: #dde9e0; }
+.language-switch button.active {
+  color: #fff;
+  background: #28543a;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+.language-switch button:focus-visible {
+  outline: 3px solid #6bab82;
+  outline-offset: 3px;
+}
+@media (max-width: 780px) {
+  .header-actions { gap: 8px; }
+  .topbar { flex-wrap: wrap; align-items: flex-start; }
+}

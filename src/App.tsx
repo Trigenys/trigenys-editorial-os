@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, formatLocalDate, translate, translateStatus, type Locale, type TranslationKey } from "./i18n";
 
 type WorkflowStatus =
   | "INGESTED"
@@ -196,20 +197,8 @@ const statusOptions: WorkflowStatus[] = [
   "REJECTED",
 ];
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
 function shortId(value: string) {
   return value.slice(0, 8);
-}
-
-function humanStatus(value: string) {
-  return value.replaceAll("_", " ").toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
 }
 
 function safeSourceUrl(value: string): string | null {
@@ -230,13 +219,13 @@ function statusTone(status: string) {
   return "neutral";
 }
 
-async function readJson<T>(response: Response): Promise<T> {
+async function readJson<T>(response: Response, locale: Locale = DEFAULT_LOCALE): Promise<T> {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     throw new Error(
       response.ok
-        ? "The server returned an unexpected response."
-        : `Request failed with HTTP ${response.status}.`,
+        ? translate(locale, "The server returned an unexpected response.")
+        : `${translate(locale, "Request failed with HTTP")} ${response.status}.`,
     );
   }
 
@@ -248,13 +237,23 @@ async function readJson<T>(response: Response): Promise<T> {
       "detail" in payload &&
       typeof payload.detail === "string"
         ? payload.detail
-        : `Request failed with HTTP ${response.status}`;
+        : `${translate(locale, "Request failed with HTTP")} ${response.status}`;
     throw new Error(detail);
   }
   return payload as T;
 }
 
 function App() {
+  const [locale, setLocale] = useState<Locale>(() => {
+    try {
+      return window.localStorage.getItem(LOCALE_STORAGE_KEY) === "en" ? "en" : DEFAULT_LOCALE;
+    } catch {
+      return DEFAULT_LOCALE;
+    }
+  });
+  const t = (key: TranslationKey) => translate(locale, key);
+  const humanStatus = (value: string) => translateStatus(locale, value);
+  const formatDate = (value: string | null | undefined) => formatLocalDate(locale, value);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
@@ -278,6 +277,16 @@ function App() {
   // The API uses the Access assertion at the edge; no token belongs in the browser.
 
 
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.title = locale === "fr" ? "Centre de pilotage éditorial · Trigenys" : "Editorial control room · Trigenys";
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    } catch {
+      // Persistent storage is optional: the switch remains usable in memory.
+    }
+  }, [locale]);
+
   const loadRuns = useCallback(async (activeFilters: Filters) => {
     setLoadingRuns(true);
     setError(null);
@@ -296,16 +305,16 @@ function App() {
     }
     try {
       const response = await fetch(`/api/operator/runs?${params.toString()}`);
-      const payload = await readJson<RunSummary[]>(response);
+      const payload = await readJson<RunSummary[]>(response, locale);
       setRuns(payload);
 
     } catch (requestError) {
       // Keep the last good data; a failed refresh must not imply zero runs.
-      setError(requestError instanceof Error ? requestError.message : "Unable to load runs.");
+      setError(requestError instanceof Error ? requestError.message : t("Unable to load runs."));
     } finally {
       setLoadingRuns(false);
     }
-  }, []);
+  }, [locale]);
 
   const loadDetail = useCallback(async (runId: string) => {
     const requestId = ++detailRequestId.current;
@@ -313,17 +322,17 @@ function App() {
     setError(null);
     try {
       const response = await fetch(`/api/operator/runs/${runId}`);
-      const payload = await readJson<RunDetail>(response);
+      const payload = await readJson<RunDetail>(response, locale);
       if (requestId === detailRequestId.current) setDetail(payload);
     } catch (requestError) {
       if (requestId === detailRequestId.current) {
         setDetail(null);
-        setError(requestError instanceof Error ? requestError.message : "Unable to load run.");
+        setError(requestError instanceof Error ? requestError.message : t("Unable to load run."));
       }
     } finally {
       if (requestId === detailRequestId.current) setLoadingDetail(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (deploymentLabel === "local") return;
@@ -331,7 +340,7 @@ function App() {
     void (async () => {
       try {
         const response = await fetch("/api/operator/session");
-        const session = await readJson<{ actor_id: string | null }>(response);
+        const session = await readJson<{ actor_id: string | null }>(response, locale);
         if (active) {
           setOperatorId(session.actor_id ?? "");
           setIdentityStatus(session.actor_id ? "verified" : "unavailable");
@@ -415,15 +424,15 @@ function App() {
           }),
         },
       );
-      const payload = await readJson<RunDetail>(response);
+      const payload = await readJson<RunDetail>(response, locale);
       setDetail(payload);
       setReason("");
       setReviewConfirmed(false);
       setPendingAction(null);
-      setActionSuccess(`Decision recorded: ${humanStatus(outcome)}.`);
+      setActionSuccess(`${t("Decision recorded")} : ${humanStatus(outcome)}.`);
       await loadRuns(filters);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Gate action failed.");
+      setError(requestError instanceof Error ? requestError.message : t("Gate action failed."));
     } finally {
       setActionBusy(false);
     }
@@ -445,15 +454,15 @@ function App() {
           }),
         },
       );
-      const payload = await readJson<RunDetail>(response);
+      const payload = await readJson<RunDetail>(response, locale);
       setDetail(payload);
       setReason("");
       setReviewConfirmed(false);
       setPendingAction(null);
-      setActionSuccess("Recovery action recorded.");
+      setActionSuccess(t("Recovery action recorded."));
       await loadRuns(filters);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Recovery failed.");
+      setError(requestError instanceof Error ? requestError.message : t("Recovery failed."));
     } finally {
       setActionBusy(false);
     }
@@ -490,17 +499,17 @@ function App() {
           <div className="brand-mark">T</div>
           <div>
             <strong>Editorial OS</strong>
-            <span>Operator console</span>
+            <span>{t("Operator console")}</span>
           </div>
         </div>
 
-        <nav className="queue-nav" aria-label="Editorial queues">
+        <nav className="queue-nav" aria-label={t("Editorial queues")}>
           {([
-            ["awaiting", "Needs review", queueCounts.waiting],
-            ["all", "All runs", runs.length],
-            ["watch", "Monitoring", queueCounts.watch],
-            ["blocked", "Blocked", queueCounts.blocked],
-            ["retryable", "Retryable", queueCounts.retryable],
+            ["awaiting", t("Needs review"), queueCounts.waiting],
+            ["all", t("All runs"), runs.length],
+            ["watch", t("Monitoring"), queueCounts.watch],
+            ["blocked", t("Blocked"), queueCounts.blocked],
+            ["retryable", t("Retryable"), queueCounts.retryable],
           ] as const).map(([view, label, count]) => (
             <button key={view} type="button" className={queueView === view ? "active" : ""}
               aria-pressed={queueView === view} onClick={() => chooseQueue(view)}>
@@ -512,21 +521,21 @@ function App() {
         <div className="operator-identity">
           <div className="operator-auth-note">
             <strong>Cloudflare Access</strong>
-            <small>Session secured by email verification.</small>
-            <a href="/cdn-cgi/access/logout">Sign out</a>
+            <small>{t("Session secured by email verification.")}</small>
+            <a href="/cdn-cgi/access/logout">{t("Sign out")}</a>
           </div>
 
-          <label htmlFor={deploymentLabel === "local" ? "operator-id" : undefined}>Operator identity</label>
+          <label htmlFor={deploymentLabel === "local" ? "operator-id" : undefined}>{t("Operator identity")}</label>
           {deploymentLabel === "local" ? (
             <input id="operator-id" value={operatorId}
               onChange={(event) => setOperatorId(event.target.value)} placeholder="operator" />
           ) : (
             <div className="verified-identity" role="status">
-              {identityStatus === "loading" ? "Verifying signed-in identity…" :
-                identityStatus === "verified" ? operatorId : "Identity unavailable — decisions disabled"}
+              {identityStatus === "loading" ? t("Verifying signed-in identity…") :
+                identityStatus === "verified" ? operatorId : t("Identity unavailable — decisions disabled")}
             </div>
           )}
-          <small>Recorded on every gate and recovery action.</small>
+          <small>{t("Recorded on every gate and recovery action.")}</small>
         </div>
       </aside>
 
@@ -534,22 +543,32 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Trigenys Editorial OS</p>
-            <h1>Editorial control room</h1>
-            <p className="workspace-subtitle">Review incoming stories, examine context and make informed decisions.</p>
+            <h1>{t("Editorial control room")}</h1>
+            <p className="workspace-subtitle">{t("Review incoming stories, examine context and make informed decisions.")}</p>
             <span className="deployment-badge">{deploymentLabel}</span>
           </div>
-          <button className="ghost-button refresh-button" type="button"
-            disabled={loadingRuns} onClick={() => void loadRuns(filters)}>
-            {loadingRuns ? "Refreshing…" : "↻ Refresh"}
-          </button>
+          <div className="header-actions">
+            <div className="language-switch" role="group" aria-label={t("Language")}>
+              <button type="button" className={locale === "fr" ? "active" : ""}
+                aria-pressed={locale === "fr"} onClick={() => setLocale("fr")}
+                lang="fr">FR</button>
+              <button type="button" className={locale === "en" ? "active" : ""}
+                aria-pressed={locale === "en"} onClick={() => setLocale("en")}
+                lang="en">EN</button>
+            </div>
+            <button className="ghost-button refresh-button" type="button"
+              disabled={loadingRuns} onClick={() => void loadRuns(filters)}>
+              {loadingRuns ? t("Refreshing…") : t("↻ Refresh")}
+            </button>
+          </div>
         </header>
 
-        <section className="summary-grid" aria-label="Queue summary">
+        <section className="summary-grid" aria-label={t("Queue summary")}>
           {([
-            ["awaiting", "Needs your review", queueCounts.waiting, "Decisions pending", "attention"],
-            ["watch", "Monitoring", queueCounts.watch, "Topics being watched", ""],
-            ["blocked", "Blocked", queueCounts.blocked, queueCounts.blocked ? "Needs intervention" : "No blockers", queueCounts.blocked ? "risk" : ""],
-            ["all", "Total runs", runs.length, "In current API results", ""],
+            ["awaiting", t("Needs your review"), queueCounts.waiting, t("Decisions pending"), "attention"],
+            ["watch", t("Monitoring"), queueCounts.watch, t("Topics being watched"), ""],
+            ["blocked", t("Blocked"), queueCounts.blocked, queueCounts.blocked ? t("Needs intervention") : t("No blockers"), queueCounts.blocked ? "risk" : ""],
+            ["all", t("Total runs"), runs.length, t("In current API results"), ""],
           ] as const).map(([view, label, count, description, tone]) => (
             <button key={view} type="button"
               className={`kpi-card ${tone} ${queueView === view ? "selected" : ""}`}
@@ -563,53 +582,53 @@ function App() {
 
         <div className="filter-surface">
           <div className="search-toolbar">
-            <label htmlFor="run-search">Search stories</label>
+            <label htmlFor="run-search">{t("Search stories")}</label>
             <input id="run-search" className="search-input" type="search"
-              placeholder="Title, vertical, angle or workflow ID…"
+              placeholder={t("Title, vertical, angle or workflow ID…")}
               value={search} onChange={(event) => setSearch(event.target.value)} />
-            <span className="result-count" aria-live="polite">{visibleRuns.length} of {runs.length} shown</span>
+            <span className="result-count" aria-live="polite">{visibleRuns.length} {t("of")} {runs.length} {t("shown")}</span>
           </div>
           <details className="advanced-filters">
-            <summary>Advanced filters <span>Vertical, status, risk and dates</span></summary>
+            <summary>{t("Advanced filters")} <span>{t("Vertical, status, risk and dates")}</span></summary>
             <form className="filters" onSubmit={applyFilters}>
-              <label>Vertical
+              <label>{t("Vertical")}
                 <input value={filters.vertical}
                   onChange={(event) => setFilters({ ...filters, vertical: event.target.value })}
-                  placeholder="All verticals" />
+                  placeholder={t("All verticals")} />
               </label>
-              <label>Status
+              <label>{t("Status")}
                 <select value={filters.status}
                   onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
-                  <option value="">All statuses</option>
+                  <option value="">{t("All statuses")}</option>
                   {statusOptions.map((status) => <option key={status} value={status}>{humanStatus(status)}</option>)}
                 </select>
               </label>
-              <label>Risk
+              <label>{t("Risk")}
                 <select value={filters.risk}
                   onChange={(event) => setFilters({ ...filters, risk: event.target.value })}>
-                  <option value="">All risks</option>
+                  <option value="">{t("All risks")}</option>
                   {["R0", "R1", "R2", "R3"].map((risk) => <option key={risk} value={risk}>{risk}</option>)}
                 </select>
               </label>
-              <label>Topic decision
+              <label>{t("Topic decision")}
                 <select value={filters.topicDecision}
                   onChange={(event) => setFilters({ ...filters, topicDecision: event.target.value })}>
-                  <option value="">All decisions</option>
-                  <option value="PROPOSE">Propose</option><option value="WATCH">Watch</option>
-                  <option value="IGNORE">Ignore</option>
+                  <option value="">{t("All decisions")}</option>
+                  <option value="PROPOSE">{t("Propose")}</option><option value="WATCH">{t("Watch")}</option>
+                  <option value="IGNORE">{t("Ignore")}</option>
                 </select>
               </label>
-              <label>Updated after
+              <label>{t("Updated after")}
                 <input type="date" value={filters.updatedAfter}
                   onChange={(event) => setFilters({ ...filters, updatedAfter: event.target.value })} />
               </label>
-              <label>Updated before
+              <label>{t("Updated before")}
                 <input type="date" value={filters.updatedBefore}
                   onChange={(event) => setFilters({ ...filters, updatedBefore: event.target.value })} />
               </label>
               <div className="filter-actions">
-                <button className="primary-button" type="submit">Apply filters</button>
-                <button className="text-button" type="button" onClick={resetFilters}>Reset all</button>
+                <button className="primary-button" type="submit">{t("Apply filters")}</button>
+                <button className="text-button" type="button" onClick={resetFilters}>{t("Reset all")}</button>
               </div>
             </form>
           </details>
@@ -617,7 +636,7 @@ function App() {
 
         {actionSuccess && <div className="success-banner" role="status">
           {actionSuccess}
-          <button type="button" className="text-button" onClick={() => setActionSuccess(null)}>Dismiss</button>
+          <button type="button" className="text-button" onClick={() => setActionSuccess(null)}>{t("Dismiss")}</button>
         </div>}
 
         {error && <div className="error-banner" role="alert">{error}</div>}
@@ -626,17 +645,17 @@ function App() {
           <section className="run-list-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Editorial queue</p>
-                <h2>{queueView === "awaiting" ? "Awaiting a decision" : queueView === "all" ? "All workflow runs" : humanStatus(queueView)}</h2>
-                <p className="queue-helper">Actionable stories appear first.</p>
+                <p className="eyebrow">{t("Editorial queue")}</p>
+                <h2>{queueView === "awaiting" ? t("Awaiting a decision") : queueView === "all" ? t("All workflow runs") : humanStatus(queueView)}</h2>
+                <p className="queue-helper">{t("Actionable stories appear first.")}</p>
               </div>
-              {loadingRuns && <span className="loading-dot" role="status">Loading…</span>}
+              {loadingRuns && <span className="loading-dot" role="status">{t("Loading…")}</span>}
             </div>
 
             <div className="run-list">
               {!loadingRuns && !error && visibleRuns.length === 0 && (
                 <div className="empty-state">
-                  No stories match this view. Try another queue or reset your filters.
+                  {t("No stories match this view. Try another queue or reset your filters.")}
                 </div>
               )}
               {visibleRuns.map((run) => (
@@ -649,13 +668,13 @@ function App() {
                 >
                   <div className="run-card-top">
                     <span className={`status-pill ${statusTone(run.status)}`}>{humanStatus(run.status)}</span>
-                    <span className="risk-meta">Risk {run.risk_class}</span>
+                    <span className="risk-meta">{t("Risk")} {run.risk_class}</span>
                   </div>
-                  <strong>{run.topic_title ?? `Run ${shortId(run.id)}`}</strong>
-                  <p>{run.vertical_key}{run.topic_urgency ? ` · ${run.topic_urgency} urgency` : ""}</p>
+                  <strong>{run.topic_title ?? `${t("Run")} ${shortId(run.id)}`}</strong>
+                  <p>{run.vertical_key}{run.topic_urgency ? ` · ${humanStatus(run.topic_urgency)} (${t("urgency")})` : ""}</p>
                   <div className="run-card-bottom">
                     <span>{formatDate(run.updated_at)}</span>
-                    {run.pending_gate && <b className="needs-decision-tag">Review gate {run.pending_gate} →</b>}
+                    {run.pending_gate && <b className="needs-decision-tag">{t("Review gate")} {run.pending_gate} →</b>}
                   </div>
                 </button>
               ))}
@@ -663,9 +682,9 @@ function App() {
           </section>
 
           <section className="detail-panel">
-            {loadingDetail && <div className="empty-state">Loading run detail…</div>}
+            {loadingDetail && <div className="empty-state">{t("Loading run detail…")}</div>}
             {!loadingDetail && !detail && (
-              <div className="empty-state">Select a workflow run to inspect it.</div>
+              <div className="empty-state">{t("Select a workflow run to inspect it.")}</div>
             )}
 
             {!loadingDetail && detail && (
@@ -674,14 +693,14 @@ function App() {
                   <div>
                     <div className="detail-meta">
                       <span className={`status-pill ${statusTone(detail.run.status)}`}>
-                        {detail.run.status}
+                        {humanStatus(detail.run.status)}
                       </span>
                       <span>{detail.run.vertical_key}</span>
                       <span>{detail.run.risk_class}</span>
                       <span>v{detail.run.state_version}</span>
                     </div>
-                    <h2>{detail.run.topic_title ?? `Workflow ${shortId(detail.run.id)}`}</h2>
-                    <p>Updated {formatDate(detail.run.updated_at)}</p>
+                    <h2>{detail.run.topic_title ?? `${t("Workflow")} ${shortId(detail.run.id)}`}</h2>
+                    <p>{t("Updated")} {formatDate(detail.run.updated_at)}</p>
                   </div>
                   <code>{shortId(detail.run.id)}</code>
                 </div>
@@ -690,27 +709,27 @@ function App() {
                   <section className="review-panel" aria-labelledby="decision-heading">
                     <div className="review-heading">
                       <div>
-                        <p className="eyebrow">Human decision · {detail.run.pending_gate ? `Gate ${detail.run.pending_gate}` : "Recovery"}</p>
-                        <h3 id="decision-heading">{detail.run.pending_gate ? "Review this story before deciding" : "Review before restarting the workflow"}</h3>
-                        <p>Decision outcomes are recorded in the audit trail.</p>
+                        <p className="eyebrow">{t("Human decision")} · {detail.run.pending_gate ? `${t("Gate")} ${detail.run.pending_gate}` : t("Recovery")}</p>
+                        <h3 id="decision-heading">{detail.run.pending_gate ? t("Review this story before deciding") : t("Review before restarting the workflow")}</h3>
+                        <p>{t("Decision outcomes are recorded in the audit trail.")}</p>
                       </div>
                       <span className={`status-pill ${statusTone(detail.run.status)}`}>{humanStatus(detail.run.status)}</span>
                     </div>
                     <div className="review-context">
-                      <div className="review-fact"><span>Risk</span><strong>{detail.run.risk_class} · {detail.run.confidence_class} confidence</strong></div>
-                      <div className="review-fact"><span>Urgency</span><strong>{detail.run.topic_urgency ?? "Not rated"}</strong></div>
-                      <div className="review-fact"><span>Topic score</span><strong>{detail.run.topic_composite_score ?? "Not scored"}</strong></div>
-                      <div className="review-fact"><span>Available evidence</span><strong>{(detail.run.topic_sources?.length ?? 0) + detail.evidence.length} source links · {detail.claims.length} claims</strong></div>
+                      <div className="review-fact"><span>{t("Risk")}</span><strong>{detail.run.risk_class} · {detail.run.confidence_class} {t("confidence")}</strong></div>
+                      <div className="review-fact"><span>{t("Urgency")}</span><strong>{detail.run.topic_urgency ? humanStatus(detail.run.topic_urgency) : t("Not rated")}</strong></div>
+                      <div className="review-fact"><span>{t("Topic score")}</span><strong>{detail.run.topic_composite_score ?? t("Not scored")}</strong></div>
+                      <div className="review-fact"><span>{t("Available evidence")}</span><strong>{(detail.run.topic_sources?.length ?? 0) + detail.evidence.length} {t("source links")} · {detail.claims.length} {t("claims")}</strong></div>
                     </div>
                     {detail.run.topic_proposed_angle && (
                       <div className="editorial-angle">
-                        <span>Proposed angle{detail.run.topic_proposed_format ? ` · ${detail.run.topic_proposed_format}` : ""}</span>
+                        <span>{t("Proposed angle")}{detail.run.topic_proposed_format ? ` · ${humanStatus(detail.run.topic_proposed_format)}` : ""}</span>
                         <p>{detail.run.topic_proposed_angle}</p>
                       </div>
                     )}
                     {(detail.run.topic_sources?.length ?? 0) > 0 ? (
                       <div className="topic-sources">
-                        <strong>Original topic sources</strong>
+                        <strong>{t("Original topic sources")}</strong>
                         <ul>{detail.run.topic_sources?.map((source, index) => {
                           const href = safeSourceUrl(source);
                           return <li key={`${source}-${index}`}>{href
@@ -719,30 +738,30 @@ function App() {
                         })}</ul>
                       </div>
                     ) : (
-                      <p className="review-caution">No original topic source links are attached yet. Consider this limitation before approving.</p>
+                      <p className="review-caution">{t("No original topic source links are attached yet. Consider this limitation before approving.")}</p>
                     )}
                     {detail.claims.some((claim) => claim.contested || claim.stale || claim.support_status !== "SUPPORTED") ||
                       Boolean(detail.draft?.unsupported_factual_claims.length) ? (
-                      <p className="review-caution">Some claims may be unsupported, stale or contested. <a href="#evidence-panel">Inspect evidence ↓</a></p>
+                      <p className="review-caution">{t("Some claims may be unsupported, stale or contested.")} <a href="#evidence-panel">{t("Inspect evidence ↓")}</a></p>
                     ) : detail.evidence.length > 0 ? (
-                      <p className="review-support">Supporting material is available. <a href="#evidence-panel">Review claims and sources ↓</a></p>
+                      <p className="review-support">{t("Supporting material is available.")} <a href="#evidence-panel">{t("Review claims and sources ↓")}</a></p>
                     ) : null}
                     {detail.gate_artifact && (
-                      <p className="review-artifact">Artifact: {detail.gate_artifact.artifact_type}, version {detail.gate_artifact.artifact_version} · {shortId(detail.gate_artifact.artifact_id)}</p>
+                      <p className="review-artifact">{t("Artifact")}: {humanStatus(detail.gate_artifact.artifact_type)}, {t("version")} {detail.gate_artifact.artifact_version} · {shortId(detail.gate_artifact.artifact_id)}</p>
                     )}
                     <div className="review-controls">
                       <label className="review-checkbox">
                         <input type="checkbox" checked={reviewConfirmed}
                           onChange={(event) => { setReviewConfirmed(event.target.checked); setPendingAction(null); }} />
-                        <span>I have reviewed the information available for this decision.</span>
+                        <span>{t("I have reviewed the information available for this decision.")}</span>
                       </label>
-                      <label htmlFor="decision-note" className="note-label">Decision note
-                        <span>{decisionRequiresNote ? " · Required for rejection or revision (at least 10 characters)" : " · Optional, recommended for audit"}</span>
+                      <label htmlFor="decision-note" className="note-label">{t("Decision note")}
+                        <span>{decisionRequiresNote ? t(" · Required for rejection or revision (at least 10 characters)") : t(" · Optional, recommended for audit")}</span>
                       </label>
                       <textarea id="decision-note" value={reason} maxLength={1000}
                         onChange={(event) => setReason(event.target.value)}
-                        placeholder="Explain the editorial rationale or missing information…" rows={3} />
-                      <div className="action-row" aria-label="Decision outcomes">
+                        placeholder={t("Explain the editorial rationale or missing information…")} rows={3} />
+                      <div className="action-row" aria-label={t("Decision outcomes")}>
                         {gateActions.map((outcome) => (
                           <button key={outcome} type="button"
                             aria-pressed={pendingAction === outcome}
@@ -756,25 +775,25 @@ function App() {
                           <button type="button" className="ghost-button" aria-pressed={pendingAction === "RECOVER"}
                             disabled={actionBusy || !reviewConfirmed || !operatorId.trim()}
                             onClick={() => setPendingAction("RECOVER")}>
-                            {humanStatus(detail.recovery_action)} run
+                            {humanStatus(detail.recovery_action)} {t("run")}
                           </button>
                         )}
                       </div>
                       {pendingAction && (
-                        <div className="decision-confirm" role="group" aria-label="Confirm your selected action">
+                        <div className="decision-confirm" role="group" aria-label={t("Confirm your selected action")}>
                           <div>
-                            <strong>Confirm: {pendingAction === "RECOVER" ? "Recover run" : humanStatus(pendingAction)}</strong>
-                            <p>This will be recorded for this workflow run. Check the outcome and note before continuing.</p>
+                            <strong>{t("Confirm")} : {pendingAction === "RECOVER" ? t("Recover run") : humanStatus(pendingAction)}</strong>
+                            <p>{t("This will be recorded for this workflow run. Check the outcome and note before continuing.")}</p>
                             {decisionRequiresNote && reason.trim().length < 10 &&
-                              <p className="required-note">Add a reason of at least 10 characters to proceed.</p>}
+                              <p className="required-note">{t("Add a reason of at least 10 characters to proceed.")}</p>}
                           </div>
                           <div className="confirmation-buttons">
                             <button className="text-button" type="button" disabled={actionBusy}
-                              onClick={() => setPendingAction(null)}>Cancel</button>
+                              onClick={() => setPendingAction(null)}>{t("Cancel")}</button>
                             <button className="primary-button" type="button" disabled={actionBusy || !canSubmitAction}
                               onClick={() => pendingAction === "RECOVER"
                                 ? void recoverRun() : void submitGate(pendingAction)}>
-                              {actionBusy ? "Saving…" : "Confirm decision"}
+                              {actionBusy ? t("Saving…") : t("Confirm decision")}
                             </button>
                           </div>
                         </div>
@@ -784,16 +803,16 @@ function App() {
                 )}
 
                 <section className="metric-strip">
-                  <article><span>Model calls</span><strong>{detail.usage.calls}</strong></article>
-                  <article><span>Tokens</span><strong>{(detail.usage.input_tokens + detail.usage.output_tokens).toLocaleString()}</strong></article>
-                  <article><span>Cost</span><strong>${Number(detail.usage.total_cost_usd).toFixed(4)}</strong></article>
-                  <article><span>Avg latency</span><strong>{detail.usage.average_latency_ms ? `${Math.round(detail.usage.average_latency_ms)} ms` : "—"}</strong></article>
+                  <article><span>{t("Model calls")}</span><strong>{detail.usage.calls}</strong></article>
+                  <article><span>{t("Tokens")}</span><strong>{(detail.usage.input_tokens + detail.usage.output_tokens).toLocaleString(locale === "fr" ? "fr-FR" : "en-GB")}</strong></article>
+                  <article><span>{t("Cost")}</span><strong>${Number(detail.usage.total_cost_usd).toFixed(4)}</strong></article>
+                  <article><span>{t("Avg latency")}</span><strong>{detail.usage.average_latency_ms ? `${Math.round(detail.usage.average_latency_ms)} ms` : "—"}</strong></article>
                 </section>
 
                 <div className="detail-sections">
                   <section className="card-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Editorial</p><h3>Draft preview</h3></div>
+                      <div><p className="eyebrow">{t("Editorial")}</p><h3>{t("Draft preview")}</h3></div>
                       {detail.draft && <span>{detail.draft.locale} · v{detail.draft.version}</span>}
                     </div>
                     {detail.draft ? (
@@ -803,32 +822,32 @@ function App() {
                         <div className="draft-body">{detail.draft.body}</div>
                         {detail.draft.unsupported_factual_claims.length > 0 && (
                           <div className="warning-box">
-                            <strong>Unsupported factual claims</strong>
+                            <strong>{t("Unsupported factual claims")}</strong>
                             <ul>
                               {detail.draft.unsupported_factual_claims.map((claim) => <li key={claim}>{claim}</li>)}
                             </ul>
                           </div>
                         )}
                       </article>
-                    ) : <div className="empty-inline">No draft yet.</div>}
+                    ) : <div className="empty-inline">{t("No draft yet.")}</div>}
                   </section>
 
                   <section className="card-section" id="evidence-panel">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Evidence</p><h3>Claims & sources</h3></div>
-                      <span>{detail.claims.length} claims · {detail.evidence.length} sources</span>
+                      <div><p className="eyebrow">{t("Evidence")}</p><h3>{t("Claims & sources")}</h3></div>
+                      <span>{detail.claims.length} {t("claims")} · {detail.evidence.length} {t("sources")}</span>
                     </div>
                     <div className="stack-list">
                       {detail.claims.map((claim) => (
                         <article className="evidence-row" key={claim.id}>
                           <div>
                             <strong>{claim.statement}</strong>
-                            <p>{claim.support_status} · {claim.confidence_class} · {claim.risk_class}</p>
+                            <p>{humanStatus(claim.support_status)} · {claim.confidence_class} · {claim.risk_class}</p>
                           </div>
                           <div className="tag-row">
-                            {claim.material && <span>material</span>}
-                            {claim.contested && <span className="warning-tag">contested</span>}
-                            {claim.stale && <span className="warning-tag">stale</span>}
+                            {claim.material && <span>{t("material")}</span>}
+                            {claim.contested && <span className="warning-tag">{t("contested")}</span>}
+                            {claim.stale && <span className="warning-tag">{t("stale")}</span>}
                           </div>
                         </article>
                       ))}
@@ -842,14 +861,14 @@ function App() {
                         </a>
                       ))}
                       {detail.claims.length === 0 && detail.evidence.length === 0 && (
-                        <div className="empty-inline">No evidence package yet.</div>
+                        <div className="empty-inline">{t("No evidence package yet.")}</div>
                       )}
                     </div>
                   </section>
 
                   <section className="card-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Creative</p><h3>Assets</h3></div>
+                      <div><p className="eyebrow">{t("Creative")}</p><h3>{t("Assets")}</h3></div>
                       <span>{detail.assets.length}</span>
                     </div>
                     <div className="asset-grid">
@@ -860,36 +879,36 @@ function App() {
                           ) : <div className="asset-placeholder">{asset.kind}</div>}
                           <div>
                             <strong>{asset.slot}</strong>
-                            <p>{asset.rights_status} · v{asset.version}</p>
+                            <p>{humanStatus(asset.rights_status)} · v{asset.version}</p>
                             {asset.caption && <span>{asset.caption}</span>}
                           </div>
                         </article>
                       ))}
-                      {detail.assets.length === 0 && <div className="empty-inline">No assets yet.</div>}
+                      {detail.assets.length === 0 && <div className="empty-inline">{t("No assets yet.")}</div>}
                     </div>
                   </section>
 
                   <section className="card-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Delivery</p><h3>Publication & distribution</h3></div>
+                      <div><p className="eyebrow">{t("Delivery")}</p><h3>{t("Publication & distribution")}</h3></div>
                     </div>
                     {detail.publication ? (
                       <div className="delivery-card">
                         <div>
                           <strong>{detail.publication.provider} → {detail.publication.target}</strong>
-                          <p>{detail.publication.status} · {formatDate(detail.publication.published_at ?? detail.publication.scheduled_at)}</p>
+                          <p>{humanStatus(detail.publication.status)} · {formatDate(detail.publication.published_at ?? detail.publication.scheduled_at)}</p>
                         </div>
                         {detail.publication.external_url && (
-                          <a href={detail.publication.external_url} target="_blank" rel="noreferrer">Open ↗</a>
+                          <a href={detail.publication.external_url} target="_blank" rel="noreferrer">{t("Open ↗")}</a>
                         )}
                       </div>
-                    ) : <div className="empty-inline">Not published yet.</div>}
+                    ) : <div className="empty-inline">{t("Not published yet.")}</div>}
                     <div className="distribution-grid">
                       {detail.distributions.map((item) => (
                         <article key={item.id}>
                           <strong>{item.channel}</strong>
                           <span>{item.provider}</span>
-                          <b className={`status-pill ${statusTone(item.status)}`}>{item.status}</b>
+                          <b className={`status-pill ${statusTone(item.status)}`}>{humanStatus(item.status)}</b>
                         </article>
                       ))}
                     </div>
@@ -897,21 +916,21 @@ function App() {
 
                   <section className="card-section timeline-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Audit</p><h3>Run timeline</h3></div>
-                      <span>{detail.timeline.length} actions · {detail.gates.length} gate decisions</span>
+                      <div><p className="eyebrow">{t("Audit")}</p><h3>{t("Run timeline")}</h3></div>
+                      <span>{detail.timeline.length} {t("actions")} · {detail.gates.length} {t("gate decisions")}</span>
                     </div>
                     <div className="timeline">
                       {detail.timeline.map((item) => (
                         <article key={item.id}>
                           <div className="timeline-marker" />
                           <div>
-                            <strong>{item.action_type.replaceAll("_", " ")}</strong>
-                            <p>{item.from_status} → {item.to_status}</p>
+                            <strong>{humanStatus(item.action_type)}</strong>
+                            <p>{humanStatus(item.from_status)} → {humanStatus(item.to_status)}</p>
                             <span>{item.actor_id} · {formatDate(item.created_at)}</span>
                           </div>
                         </article>
                       ))}
-                      {detail.timeline.length === 0 && <div className="empty-inline">No workflow actions recorded yet.</div>}
+                      {detail.timeline.length === 0 && <div className="empty-inline">{t("No workflow actions recorded yet.")}</div>}
                     </div>
                   </section>
                 </div>
