@@ -259,7 +259,10 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [filters, setFilters] = useState<Filters>(initialFilters);
-  const [operatorId, setOperatorId] = useState("operator");
+  const [operatorId, setOperatorId] = useState(deploymentLabel === "local" ? "operator" : "");
+  const [identityStatus, setIdentityStatus] = useState<"loading" | "verified" | "unavailable">(
+    deploymentLabel === "local" ? "verified" : "loading",
+  );
   const [reason, setReason] = useState("");
   const [search, setSearch] = useState("");
   const [queueView, setQueueView] = useState<QueueView>("awaiting");
@@ -319,6 +322,27 @@ function App() {
     } finally {
       setLoadingDetail(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (deploymentLabel === "local") return;
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/operator/session");
+        const session = await readJson<{ actor_id: string | null }>(response);
+        if (active) {
+          setOperatorId(session.actor_id ?? "");
+          setIdentityStatus(session.actor_id ? "verified" : "unavailable");
+        }
+      } catch {
+        if (active) {
+          setOperatorId("");
+          setIdentityStatus("unavailable");
+        }
+      }
+    })();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -490,13 +514,16 @@ function App() {
             <a href="/cdn-cgi/access/logout">Sign out</a>
           </div>
 
-          <label htmlFor="operator-id">Operator identity</label>
-          <input
-            id="operator-id"
-            value={operatorId}
-            onChange={(event) => setOperatorId(event.target.value)}
-            placeholder="operator"
-          />
+          <label htmlFor={deploymentLabel === "local" ? "operator-id" : undefined}>Operator identity</label>
+          {deploymentLabel === "local" ? (
+            <input id="operator-id" value={operatorId}
+              onChange={(event) => setOperatorId(event.target.value)} placeholder="operator" />
+          ) : (
+            <div className="verified-identity" role="status">
+              {identityStatus === "loading" ? "Verifying signed-in identity…" :
+                identityStatus === "verified" ? operatorId : "Identity unavailable — decisions disabled"}
+            </div>
+          )}
           <small>Recorded on every gate and recovery action.</small>
         </div>
       </aside>
