@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, formatLocalDate, translate, translateStatus, type Locale, type TranslationKey } from "./i18n";
 
 type WorkflowStatus =
   | "INGESTED"
@@ -196,20 +197,8 @@ const statusOptions: WorkflowStatus[] = [
   "REJECTED",
 ];
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
 function shortId(value: string) {
   return value.slice(0, 8);
-}
-
-function humanStatus(value: string) {
-  return value.replaceAll("_", " ").toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
 }
 
 function safeSourceUrl(value: string): string | null {
@@ -255,6 +244,16 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 function App() {
+  const [locale, setLocale] = useState<Locale>(() => {
+    try {
+      return window.localStorage.getItem(LOCALE_STORAGE_KEY) === "en" ? "en" : DEFAULT_LOCALE;
+    } catch {
+      return DEFAULT_LOCALE;
+    }
+  });
+  const t = (key: TranslationKey) => translate(locale, key);
+  const humanStatus = (value: string) => translateStatus(locale, value);
+  const formatDate = (value: string | null | undefined) => formatLocalDate(locale, value);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
@@ -277,6 +276,16 @@ function App() {
   // Cloudflare Access authenticates the entire Worker before this UI loads.
   // The API uses the Access assertion at the edge; no token belongs in the browser.
 
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.title = locale === "fr" ? "Centre de pilotage éditorial · Trigenys" : "Editorial control room · Trigenys";
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    } catch {
+      // Persistent storage is optional: the switch remains usable in memory.
+    }
+  }, [locale]);
 
   const loadRuns = useCallback(async (activeFilters: Filters) => {
     setLoadingRuns(true);
@@ -301,7 +310,7 @@ function App() {
 
     } catch (requestError) {
       // Keep the last good data; a failed refresh must not imply zero runs.
-      setError(requestError instanceof Error ? requestError.message : "Unable to load runs.");
+      setError(requestError instanceof Error ? requestError.message : t("Unable to load runs."));
     } finally {
       setLoadingRuns(false);
     }
@@ -318,12 +327,12 @@ function App() {
     } catch (requestError) {
       if (requestId === detailRequestId.current) {
         setDetail(null);
-        setError(requestError instanceof Error ? requestError.message : "Unable to load run.");
+        setError(requestError instanceof Error ? requestError.message : t("Unable to load run."));
       }
     } finally {
       if (requestId === detailRequestId.current) setLoadingDetail(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (deploymentLabel === "local") return;
@@ -420,10 +429,10 @@ function App() {
       setReason("");
       setReviewConfirmed(false);
       setPendingAction(null);
-      setActionSuccess(`Decision recorded: ${humanStatus(outcome)}.`);
+      setActionSuccess(`${t("Decision recorded")} : ${humanStatus(outcome)}.`);
       await loadRuns(filters);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Gate action failed.");
+      setError(requestError instanceof Error ? requestError.message : t("Gate action failed."));
     } finally {
       setActionBusy(false);
     }
@@ -450,10 +459,10 @@ function App() {
       setReason("");
       setReviewConfirmed(false);
       setPendingAction(null);
-      setActionSuccess("Recovery action recorded.");
+      setActionSuccess(t("Recovery action recorded."));
       await loadRuns(filters);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Recovery failed.");
+      setError(requestError instanceof Error ? requestError.message : t("Recovery failed."));
     } finally {
       setActionBusy(false);
     }
