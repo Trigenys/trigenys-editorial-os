@@ -16,6 +16,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
 
 from editorial_os_api.config import Settings
 from editorial_os_api.content_agent import ContentAgent, ModelContentAdapter
@@ -24,7 +25,13 @@ from editorial_os_api.model_gateway import (
     BudgetLedger, BudgetPolicy, ModelGateway, ModelPolicy, ModelRoute, ModelTask,
 )
 from editorial_os_api.model_gateway.adapters.litellm import LiteLLMClient
-from editorial_os_api.persistence.models import GateDecision, Source, SourceItem, TopicCandidate, WorkflowRun
+from editorial_os_api.persistence.models import (
+    GateDecision,
+    Source,
+    SourceItem,
+    TopicCandidate,
+    WorkflowRun,
+)
 from editorial_os_api.persistence.session import get_session_factory
 from editorial_os_api.research_verification import (
     ModelResearchAdapter, ResearchBudget, ResearchVerificationAgent, VerificationPolicy,
@@ -78,7 +85,7 @@ def _source_text(item: SourceItem) -> str:
     return text if isinstance(text, str) else ""
 
 
-def preflight(sessions) -> PilotPreflight:
+def preflight(sessions: sessionmaker[Session]) -> PilotPreflight:
     with sessions() as session:
         run = session.get(WorkflowRun, RUN_ID)
         if run is None:
@@ -142,7 +149,9 @@ def preflight(sessions) -> PilotPreflight:
             gate_a_approved=approved,
             original_sources=len(topic.source_item_ids),
             independent_official_sources=len(official_items),
-            usable_official_sources=sum(source_usable(_source_text(item)) for item in official_items),
+            usable_official_sources=sum(
+                source_usable(_source_text(item)) for item in official_items
+            ),
             additional_source_item_ids=tuple(item.id for item in official_items),
         )
 
@@ -166,7 +175,7 @@ def report(snapshot: PilotPreflight) -> dict[str, Any]:
     }
 
 
-def enrich(sessions) -> None:
+def enrich(sessions: sessionmaker[Session]) -> None:
     """Fetch two fixed institutional references, without touching human gates."""
     scout = ScoutAgent(sessions)
     extractor = HttpPageExtractor()
@@ -183,7 +192,9 @@ def enrich(sessions) -> None:
             force=True,
         )
         if result.status != "SUCCEEDED":
-            raise RuntimeError(f"Official source {name!r} ingestion failed: {result.failure_kind}")
+            raise RuntimeError(
+                f"Official source {name!r} ingestion failed: {result.failure_kind}"
+            )
         print(json.dumps({
             "source": name,
             "status": result.status,
@@ -192,7 +203,7 @@ def enrich(sessions) -> None:
         }))
 
 
-def draft(sessions, snapshot: PilotPreflight) -> None:
+def draft(sessions: sessionmaker[Session], snapshot: PilotPreflight) -> None:
     if not snapshot.can_draft:
         raise RuntimeError("Fail closed: no verified human Gate A or insufficient official sources.")
 
@@ -200,7 +211,7 @@ def draft(sessions, snapshot: PilotPreflight) -> None:
     if not model or not os.environ.get("GEMINI_API_KEY", "").strip():
         raise RuntimeError(
             "No staging model configured. Provide EDITORIAL_PILOT_MODEL and "
-            "GEMINI_API_KEY through GitHub Actions secrets; no AI call was made."
+            "GEMINI_API_KEY through Actions secrets; no AI call was made."
         )
     if not model.startswith("gemini/"):
         raise RuntimeError("Only a reviewed Gemini route is allowed for this staging canary.")
@@ -229,7 +240,9 @@ def draft(sessions, snapshot: PilotPreflight) -> None:
         RUN_ID,
         adapter=ModelResearchAdapter(gateway),
         budget=ResearchBudget(
-            max_sources=3, max_claims=6, max_evidence_items=12,
+            max_sources=3,
+            max_claims=6,
+            max_evidence_items=12,
             max_adapter_calls=4,
         ),
         policy=VerificationPolicy(stale_after_hours=24 * 365),
@@ -267,7 +280,10 @@ def main() -> int:
     parser.add_argument("command", choices=["inspect", "enrich", "draft"])
     args = parser.parse_args()
     settings = Settings()
-    if settings.environment != "staging" or "editorial_os_staging" not in settings.database_url:
+    if (
+        settings.environment != "staging"
+        or "editorial_os_staging" not in settings.database_url
+    ):
         raise SystemExit("Fail closed: a dedicated editorial_os_staging database is required.")
     sessions = get_session_factory(settings)
     if args.command == "inspect":
@@ -286,5 +302,8 @@ if __name__ == "__main__":
         sys.exit(main())
     except (RuntimeError, ValueError) as error:
         # Avoid leaking credentials or request content in CI logs.
-        print(f"Pilot stopped safely: {type(error).__name__}: {str(error)[:240]}", file=sys.stderr)
+        print(
+            f"Pilot stopped safely: {type(error).__name__}: {str(error)[:240]}",
+            file=sys.stderr,
+        )
         sys.exit(2)
