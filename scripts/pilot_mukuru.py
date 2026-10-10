@@ -45,6 +45,7 @@ from editorial_os_api.scout import ScoutAgent
 from editorial_os_api.scout.adapters.manual import HttpPageExtractor
 from editorial_os_api.scout.contracts import ManualUrlInput
 from editorial_os_api.vertical_packs.builtin import get_builtin_vertical_pack
+from pydantic import HttpUrl
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -193,7 +194,7 @@ def enrich(sessions: sessionmaker[Session]) -> None:
             source_id = source.id
         result = scout.ingest_manual_url(
             source_id,
-            ManualUrlInput(url=url, locale="en"),
+            ManualUrlInput(url=HttpUrl(url), locale="en"),
             extractor=extractor,
             force=True,
         )
