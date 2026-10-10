@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type WorkflowStatus =
   | "INGESTED"
@@ -271,6 +271,7 @@ function App() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const detailRequestId = useRef(0);
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Cloudflare Access authenticates the entire Worker before this UI loads.
@@ -297,10 +298,7 @@ function App() {
       const response = await fetch(`/api/operator/runs?${params.toString()}`);
       const payload = await readJson<RunSummary[]>(response);
       setRuns(payload);
-      setSelectedId((current) => {
-        if (current && payload.some((run) => run.id === current)) return current;
-        return payload[0]?.id ?? null;
-      });
+
     } catch (requestError) {
       // Keep the last good data; a failed refresh must not imply zero runs.
       setError(requestError instanceof Error ? requestError.message : "Unable to load runs.");
@@ -310,17 +308,20 @@ function App() {
   }, []);
 
   const loadDetail = useCallback(async (runId: string) => {
+    const requestId = ++detailRequestId.current;
     setLoadingDetail(true);
     setError(null);
     try {
       const response = await fetch(`/api/operator/runs/${runId}`);
       const payload = await readJson<RunDetail>(response);
-      setDetail(payload);
+      if (requestId === detailRequestId.current) setDetail(payload);
     } catch (requestError) {
-      setDetail(null);
-      setError(requestError instanceof Error ? requestError.message : "Unable to load run.");
+      if (requestId === detailRequestId.current) {
+        setDetail(null);
+        setError(requestError instanceof Error ? requestError.message : "Unable to load run.");
+      }
     } finally {
-      setLoadingDetail(false);
+      if (requestId === detailRequestId.current) setLoadingDetail(false);
     }
   }, []);
 
@@ -353,12 +354,13 @@ function App() {
     setPendingAction(null);
     setReviewConfirmed(false);
     setReason("");
-    setActionSuccess(null);
     if (selectedId) {
       setDetail(null);
       void loadDetail(selectedId);
     } else {
+      detailRequestId.current += 1;
       setDetail(null);
+      setLoadingDetail(false);
     }
   }, [selectedId, loadDetail]);
 
@@ -613,7 +615,10 @@ function App() {
           </details>
         </div>
 
-        {actionSuccess && <div className="success-banner" role="status">{actionSuccess}</div>}
+        {actionSuccess && <div className="success-banner" role="status">
+          {actionSuccess}
+          <button type="button" className="text-button" onClick={() => setActionSuccess(null)}>Dismiss</button>
+        </div>}
 
         {error && <div className="error-banner" role="alert">{error}</div>}
 
