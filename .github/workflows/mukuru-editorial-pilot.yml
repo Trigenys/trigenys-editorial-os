@@ -91,11 +91,11 @@ jobs:
             core.setSecret(sqlalchemyUrl);
             core.exportVariable('EDITORIAL_OS_DATABASE_URL', sqlalchemyUrl);
 
-      - name: Gate-respecting Mukuru pilot
+      - name: Gate-respecting Mukuru source enrichment and pilot
         shell: bash
         run: |
           set -euo pipefail
-          command_name="${{ github.event_name == 'workflow_dispatch' && inputs.command || 'inspect' }}"
+          command_name="${{ github.event_name == 'workflow_dispatch' && inputs.command || 'enrich' }}"
           case "$command_name" in
             inspect|enrich|draft) ;;
             *) echo "Unknown command" >&2; exit 2 ;;
