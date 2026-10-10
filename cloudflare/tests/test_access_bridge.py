@@ -141,6 +141,8 @@ class OperatorAccessBridgeTests(unittest.TestCase):
             "/api/operator/runs?limit=50",
             {
                 "Cf-Access-Jwt-Assertion": "verified-by-access-edge",
+                "Cf-Access-Authenticated-User-Email": "editor@trigenys.com",
+                "X-Editorial-Verified-Actor": "client-fraud",
                 "Authorization": "Bearer client-untrusted",
             },
         )
@@ -157,11 +159,18 @@ class OperatorAccessBridgeTests(unittest.TestCase):
             forwarded.headers.get("Cf-Access-Jwt-Assertion"), "verified-by-access-edge"
         )
         self.assertEqual(forwarded.url, incoming.url)
+        self.assertEqual(
+            forwarded.headers.get("X-Editorial-Verified-Actor"), "editor@trigenys.com"
+        )
+        self.assertEqual(incoming.headers.get("X-Editorial-Verified-Actor"), "client-fraud")
 
     def test_post_body_and_method_survive_native_clone(self):
         incoming = PythonSDKRequest(
             "/api/operator/runs/123/gate",
-            {"Cf-Access-Jwt-Assertion": "verified-by-access-edge"},
+            {
+                "Cf-Access-Jwt-Assertion": "verified-by-access-edge",
+                "Cf-Access-Authenticated-User-Email": "editor@trigenys.com",
+            },
             method="POST",
             body='{"outcome":"APPROVED"}',
         )
@@ -174,11 +183,27 @@ class OperatorAccessBridgeTests(unittest.TestCase):
         result = asyncio.run(self.entrypoint.fetch(PythonSDKRequest("/api/operator/runs")))
         self.assertEqual(result["status"], 401)
 
+    def test_no_verified_email_fails_closed(self):
+        result = asyncio.run(
+            self.entrypoint.fetch(
+                PythonSDKRequest(
+                    "/api/operator/runs", {"Cf-Access-Jwt-Assertion": "token"}
+                )
+            )
+        )
+        self.assertEqual(result["status"], 401)
+
     def test_missing_server_secret_fails_closed(self):
         self.entrypoint.env.EDITORIAL_OS_OPERATOR_TOKEN = None
         result = asyncio.run(
             self.entrypoint.fetch(
-                PythonSDKRequest("/api/operator/runs", {"Cf-Access-Jwt-Assertion": "token"})
+                PythonSDKRequest(
+                    "/api/operator/runs",
+                    {
+                        "Cf-Access-Jwt-Assertion": "token",
+                        "Cf-Access-Authenticated-User-Email": "editor@trigenys.com",
+                    },
+                )
             )
         )
         self.assertEqual(result["status"], 503)
