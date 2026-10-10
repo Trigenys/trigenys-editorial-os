@@ -367,7 +367,7 @@ function App() {
     }
   }, [visibleRuns, selectedId]);
 
-  const decisionRequiresNote = ["REJECTED", "REVISION_REQUESTED"].includes(pendingAction ?? "");
+  const decisionRequiresNote = ["REJECTED", "REVISION_REQUESTED", "RECOVER"].includes(pendingAction ?? "");
   const canSubmitAction = reviewConfirmed && Boolean(operatorId.trim()) &&
     (!decisionRequiresNote || reason.trim().length >= 10);
 
@@ -655,47 +655,97 @@ function App() {
                 </div>
 
                 {(detail.run.pending_gate || detail.recovery_action) && (
-                  <section className="action-panel">
-                    <div>
-                      <p className="eyebrow">Human control</p>
-                      <h3>
-                        {detail.run.pending_gate
-                          ? `Gate ${detail.run.pending_gate} requires a decision`
-                          : `${detail.recovery_action} is available`}
-                      </h3>
-                      {detail.gate_artifact && (
-                        <p className="muted">
-                          {detail.gate_artifact.artifact_type} · v{detail.gate_artifact.artifact_version} · {shortId(detail.gate_artifact.artifact_id)}
-                        </p>
-                      )}
+                  <section className="review-panel" aria-labelledby="decision-heading">
+                    <div className="review-heading">
+                      <div>
+                        <p className="eyebrow">Human decision · {detail.run.pending_gate ? `Gate ${detail.run.pending_gate}` : "Recovery"}</p>
+                        <h3 id="decision-heading">{detail.run.pending_gate ? "Review this story before deciding" : "Review before restarting the workflow"}</h3>
+                        <p>Decision outcomes are recorded in the audit trail.</p>
+                      </div>
+                      <span className={`status-pill ${statusTone(detail.run.status)}`}>{humanStatus(detail.run.status)}</span>
                     </div>
-                    <textarea
-                      value={reason}
-                      onChange={(event) => setReason(event.target.value)}
-                      placeholder="Reason or operator note"
-                      rows={3}
-                    />
-                    <div className="action-row">
-                      {gateActions.map((outcome) => (
-                        <button
-                          key={outcome}
-                          type="button"
-                          className={outcome === "APPROVED" ? "primary-button" : "ghost-button"}
-                          disabled={actionBusy || !operatorId.trim()}
-                          onClick={() => void submitGate(outcome)}
-                        >
-                          {outcome.replace("_", " ")}
-                        </button>
-                      ))}
-                      {detail.recovery_action && (
-                        <button
-                          type="button"
-                          className="primary-button"
-                          disabled={actionBusy || !operatorId.trim()}
-                          onClick={() => void recoverRun()}
-                        >
-                          {detail.recovery_action}
-                        </button>
+                    <div className="review-context">
+                      <div className="review-fact"><span>Risk</span><strong>{detail.run.risk_class} · {detail.run.confidence_class} confidence</strong></div>
+                      <div className="review-fact"><span>Urgency</span><strong>{detail.run.topic_urgency ?? "Not rated"}</strong></div>
+                      <div className="review-fact"><span>Topic score</span><strong>{detail.run.topic_composite_score ?? "Not scored"}</strong></div>
+                      <div className="review-fact"><span>Available evidence</span><strong>{(detail.run.topic_sources?.length ?? 0) + detail.evidence.length} source links · {detail.claims.length} claims</strong></div>
+                    </div>
+                    {detail.run.topic_proposed_angle && (
+                      <div className="editorial-angle">
+                        <span>Proposed angle{detail.run.topic_proposed_format ? ` · ${detail.run.topic_proposed_format}` : ""}</span>
+                        <p>{detail.run.topic_proposed_angle}</p>
+                      </div>
+                    )}
+                    {(detail.run.topic_sources?.length ?? 0) > 0 ? (
+                      <div className="topic-sources">
+                        <strong>Original topic sources</strong>
+                        <ul>{detail.run.topic_sources?.map((source, index) => {
+                          const href = safeSourceUrl(source);
+                          return <li key={`${source}-${index}`}>{href
+                            ? <a href={href} target="_blank" rel="noopener noreferrer">{new URL(href).hostname} ↗</a>
+                            : <span>{source}</span>}</li>;
+                        })}</ul>
+                      </div>
+                    ) : (
+                      <p className="review-caution">No original topic source links are attached yet. Consider this limitation before approving.</p>
+                    )}
+                    {detail.claims.some((claim) => claim.contested || claim.stale || claim.support_status !== "SUPPORTED") ||
+                      Boolean(detail.draft?.unsupported_factual_claims.length) ? (
+                      <p className="review-caution">Some claims may be unsupported, stale or contested. <a href="#evidence-panel">Inspect evidence ↓</a></p>
+                    ) : detail.evidence.length > 0 ? (
+                      <p className="review-support">Supporting material is available. <a href="#evidence-panel">Review claims and sources ↓</a></p>
+                    ) : null}
+                    {detail.gate_artifact && (
+                      <p className="review-artifact">Artifact: {detail.gate_artifact.artifact_type}, version {detail.gate_artifact.artifact_version} · {shortId(detail.gate_artifact.artifact_id)}</p>
+                    )}
+                    <div className="review-controls">
+                      <label className="review-checkbox">
+                        <input type="checkbox" checked={reviewConfirmed}
+                          onChange={(event) => { setReviewConfirmed(event.target.checked); setPendingAction(null); }} />
+                        <span>I have reviewed the information available for this decision.</span>
+                      </label>
+                      <label htmlFor="decision-note" className="note-label">Decision note
+                        <span>{decisionRequiresNote ? " · Required for rejection or revision (at least 10 characters)" : " · Optional, recommended for audit"}</span>
+                      </label>
+                      <textarea id="decision-note" value={reason} maxLength={1000}
+                        onChange={(event) => setReason(event.target.value)}
+                        placeholder="Explain the editorial rationale or missing information…" rows={3} />
+                      <div className="action-row" aria-label="Decision outcomes">
+                        {gateActions.map((outcome) => (
+                          <button key={outcome} type="button"
+                            aria-pressed={pendingAction === outcome}
+                            className={`${outcome === "APPROVED" ? "primary-button" : "ghost-button"} ${pendingAction === outcome ? "action-selected" : ""}`}
+                            disabled={actionBusy || !reviewConfirmed || !operatorId.trim()}
+                            onClick={() => setPendingAction(outcome)}>
+                            {humanStatus(outcome)}
+                          </button>
+                        ))}
+                        {detail.recovery_action && (
+                          <button type="button" className="ghost-button" aria-pressed={pendingAction === "RECOVER"}
+                            disabled={actionBusy || !reviewConfirmed || !operatorId.trim()}
+                            onClick={() => setPendingAction("RECOVER")}>
+                            {humanStatus(detail.recovery_action)} run
+                          </button>
+                        )}
+                      </div>
+                      {pendingAction && (
+                        <div className="decision-confirm" role="group" aria-label="Confirm your selected action">
+                          <div>
+                            <strong>Confirm: {pendingAction === "RECOVER" ? "Recover run" : humanStatus(pendingAction)}</strong>
+                            <p>This will be recorded for this workflow run. Check the outcome and note before continuing.</p>
+                            {decisionRequiresNote && reason.trim().length < 10 &&
+                              <p className="required-note">Add a reason of at least 10 characters to proceed.</p>}
+                          </div>
+                          <div className="confirmation-buttons">
+                            <button className="text-button" type="button" disabled={actionBusy}
+                              onClick={() => setPendingAction(null)}>Cancel</button>
+                            <button className="primary-button" type="button" disabled={actionBusy || !canSubmitAction}
+                              onClick={() => pendingAction === "RECOVER"
+                                ? void recoverRun() : void submitGate(pendingAction)}>
+                              {actionBusy ? "Saving…" : "Confirm decision"}
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </section>
@@ -731,7 +781,7 @@ function App() {
                     ) : <div className="empty-inline">No draft yet.</div>}
                   </section>
 
-                  <section className="card-section">
+                  <section className="card-section" id="evidence-panel">
                     <div className="section-heading">
                       <div><p className="eyebrow">Evidence</p><h3>Claims & sources</h3></div>
                       <span>{detail.claims.length} claims · {detail.evidence.length} sources</span>
