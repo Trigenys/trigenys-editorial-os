@@ -72,6 +72,9 @@ class PilotPreflight:
     workflow_status: str
     topic_title: str
     gate_a_approved: bool
+    # A prior Gate A approval does not cover a substantive editorial correction.
+    # The original version 1 explicitly used the now-rejected cash-out premise.
+    revised_angle_approved: bool
     original_sources: int
     independent_official_sources: int
     usable_official_sources: int
@@ -81,6 +84,7 @@ class PilotPreflight:
     def can_draft(self) -> bool:
         return (
             self.gate_a_approved
+            and self.revised_angle_approved
             and self.workflow_status == WorkflowStatus.TOPIC_APPROVED.value
             and self.independent_official_sources >= 2
             and self.usable_official_sources >= 2
@@ -160,6 +164,13 @@ def preflight(sessions: sessionmaker[Session]) -> PilotPreflight:
             workflow_status=run.status,
             topic_title=topic.title,
             gate_a_approved=approved,
+            revised_angle_approved=(
+                approved
+                and topic.version > 1
+                and bool(topic.proposed_angle)
+                and "Orange Money" in topic.proposed_angle
+                and "MoMo" in topic.proposed_angle
+            ),
             original_sources=len(topic.source_item_ids),
             independent_official_sources=len(official_items),
             usable_official_sources=sum(
@@ -175,6 +186,7 @@ def report(snapshot: PilotPreflight) -> dict[str, Any]:
         "title": snapshot.topic_title,
         "workflow_status": snapshot.workflow_status,
         "gate_a_approved": snapshot.gate_a_approved,
+        "revised_angle_approved": snapshot.revised_angle_approved,
         "original_source_items": snapshot.original_sources,
         "official_source_items": snapshot.independent_official_sources,
         "official_sources_with_usable_text": snapshot.usable_official_sources,
@@ -182,7 +194,12 @@ def report(snapshot: PilotPreflight) -> dict[str, Any]:
         "next": (
             "Research and French drafting are permitted."
             if snapshot.can_draft else
-            "Source enrichment and explicit Gate A human approval are required."
+            (
+                "An explicitly approved revised Mukuru angle is required "
+                "(new candidate version, acknowledging Orange Money and MoMo)."
+                if snapshot.gate_a_approved and not snapshot.revised_angle_approved
+                else "Source enrichment and explicit Gate A approval are required."
+            )
         ),
         "publication_allowed": False,
     }
@@ -225,7 +242,10 @@ def enrich(sessions: sessionmaker[Session]) -> None:
 
 def draft(sessions: sessionmaker[Session], snapshot: PilotPreflight) -> None:
     if not snapshot.can_draft:
-        raise RuntimeError("Fail closed: no verified human Gate A or insufficient official sources.")
+        raise RuntimeError(
+            "Fail closed: revised editorial angle must have a new Gate A approval "
+            "and sufficient independent sources."
+        )
 
     model = os.environ.get("EDITORIAL_PILOT_MODEL", "").strip()
     if not model or not os.environ.get("GEMINI_API_KEY", "").strip():
