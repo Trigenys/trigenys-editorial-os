@@ -499,17 +499,17 @@ function App() {
           <div className="brand-mark">T</div>
           <div>
             <strong>Editorial OS</strong>
-            <span>Operator console</span>
+            <span>{t("Operator console")}</span>
           </div>
         </div>
 
-        <nav className="queue-nav" aria-label="Editorial queues">
+        <nav className="queue-nav" aria-label={t("Editorial queues")}>
           {([
-            ["awaiting", "Needs review", queueCounts.waiting],
-            ["all", "All runs", runs.length],
-            ["watch", "Monitoring", queueCounts.watch],
-            ["blocked", "Blocked", queueCounts.blocked],
-            ["retryable", "Retryable", queueCounts.retryable],
+            ["awaiting", t("Needs review"), queueCounts.waiting],
+            ["all", t("All runs"), runs.length],
+            ["watch", t("Monitoring"), queueCounts.watch],
+            ["blocked", t("Blocked"), queueCounts.blocked],
+            ["retryable", t("Retryable"), queueCounts.retryable],
           ] as const).map(([view, label, count]) => (
             <button key={view} type="button" className={queueView === view ? "active" : ""}
               aria-pressed={queueView === view} onClick={() => chooseQueue(view)}>
@@ -521,21 +521,21 @@ function App() {
         <div className="operator-identity">
           <div className="operator-auth-note">
             <strong>Cloudflare Access</strong>
-            <small>Session secured by email verification.</small>
-            <a href="/cdn-cgi/access/logout">Sign out</a>
+            <small>{t("Session secured by email verification.")}</small>
+            <a href="/cdn-cgi/access/logout">{t("Sign out")}</a>
           </div>
 
-          <label htmlFor={deploymentLabel === "local" ? "operator-id" : undefined}>Operator identity</label>
+          <label htmlFor={deploymentLabel === "local" ? "operator-id" : undefined}>{t("Operator identity")}</label>
           {deploymentLabel === "local" ? (
             <input id="operator-id" value={operatorId}
               onChange={(event) => setOperatorId(event.target.value)} placeholder="operator" />
           ) : (
             <div className="verified-identity" role="status">
-              {identityStatus === "loading" ? "Verifying signed-in identity…" :
-                identityStatus === "verified" ? operatorId : "Identity unavailable — decisions disabled"}
+              {identityStatus === "loading" ? t("Verifying signed-in identity…") :
+                identityStatus === "verified" ? operatorId : t("Identity unavailable — decisions disabled")}
             </div>
           )}
-          <small>Recorded on every gate and recovery action.</small>
+          <small>{t("Recorded on every gate and recovery action.")}</small>
         </div>
       </aside>
 
@@ -543,22 +543,32 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Trigenys Editorial OS</p>
-            <h1>Editorial control room</h1>
-            <p className="workspace-subtitle">Review incoming stories, examine context and make informed decisions.</p>
+            <h1>{t("Editorial control room")}</h1>
+            <p className="workspace-subtitle">{t("Review incoming stories, examine context and make informed decisions.")}</p>
             <span className="deployment-badge">{deploymentLabel}</span>
           </div>
-          <button className="ghost-button refresh-button" type="button"
-            disabled={loadingRuns} onClick={() => void loadRuns(filters)}>
-            {loadingRuns ? "Refreshing…" : "↻ Refresh"}
-          </button>
+          <div className="header-actions">
+            <div className="language-switch" role="group" aria-label={t("Language")}>
+              <button type="button" className={locale === "fr" ? "active" : ""}
+                aria-pressed={locale === "fr"} onClick={() => setLocale("fr")}
+                lang="fr">FR</button>
+              <button type="button" className={locale === "en" ? "active" : ""}
+                aria-pressed={locale === "en"} onClick={() => setLocale("en")}
+                lang="en">EN</button>
+            </div>
+            <button className="ghost-button refresh-button" type="button"
+              disabled={loadingRuns} onClick={() => void loadRuns(filters)}>
+              {loadingRuns ? t("Refreshing…") : t("↻ Refresh")}
+            </button>
+          </div>
         </header>
 
-        <section className="summary-grid" aria-label="Queue summary">
+        <section className="summary-grid" aria-label={t("Queue summary")}>
           {([
-            ["awaiting", "Needs your review", queueCounts.waiting, "Decisions pending", "attention"],
-            ["watch", "Monitoring", queueCounts.watch, "Topics being watched", ""],
-            ["blocked", "Blocked", queueCounts.blocked, queueCounts.blocked ? "Needs intervention" : "No blockers", queueCounts.blocked ? "risk" : ""],
-            ["all", "Total runs", runs.length, "In current API results", ""],
+            ["awaiting", t("Needs your review"), queueCounts.waiting, t("Decisions pending"), "attention"],
+            ["watch", t("Monitoring"), queueCounts.watch, t("Topics being watched"), ""],
+            ["blocked", t("Blocked"), queueCounts.blocked, queueCounts.blocked ? t("Needs intervention") : t("No blockers"), queueCounts.blocked ? "risk" : ""],
+            ["all", t("Total runs"), runs.length, t("In current API results"), ""],
           ] as const).map(([view, label, count, description, tone]) => (
             <button key={view} type="button"
               className={`kpi-card ${tone} ${queueView === view ? "selected" : ""}`}
@@ -572,53 +582,53 @@ function App() {
 
         <div className="filter-surface">
           <div className="search-toolbar">
-            <label htmlFor="run-search">Search stories</label>
+            <label htmlFor="run-search">{t("Search stories")}</label>
             <input id="run-search" className="search-input" type="search"
-              placeholder="Title, vertical, angle or workflow ID…"
+              placeholder={t("Title, vertical, angle or workflow ID…")}
               value={search} onChange={(event) => setSearch(event.target.value)} />
-            <span className="result-count" aria-live="polite">{visibleRuns.length} of {runs.length} shown</span>
+            <span className="result-count" aria-live="polite">{visibleRuns.length} {t("of")} {runs.length} {t("shown")}</span>
           </div>
           <details className="advanced-filters">
-            <summary>Advanced filters <span>Vertical, status, risk and dates</span></summary>
+            <summary>{t("Advanced filters")} <span>{t("Vertical, status, risk and dates")}</span></summary>
             <form className="filters" onSubmit={applyFilters}>
-              <label>Vertical
+              <label>{t("Vertical")}
                 <input value={filters.vertical}
                   onChange={(event) => setFilters({ ...filters, vertical: event.target.value })}
-                  placeholder="All verticals" />
+                  placeholder={t("All verticals")} />
               </label>
-              <label>Status
+              <label>{t("Status")}
                 <select value={filters.status}
                   onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
-                  <option value="">All statuses</option>
+                  <option value="">{t("All statuses")}</option>
                   {statusOptions.map((status) => <option key={status} value={status}>{humanStatus(status)}</option>)}
                 </select>
               </label>
-              <label>Risk
+              <label>{t("Risk")}
                 <select value={filters.risk}
                   onChange={(event) => setFilters({ ...filters, risk: event.target.value })}>
-                  <option value="">All risks</option>
+                  <option value="">{t("All risks")}</option>
                   {["R0", "R1", "R2", "R3"].map((risk) => <option key={risk} value={risk}>{risk}</option>)}
                 </select>
               </label>
-              <label>Topic decision
+              <label>{t("Topic decision")}
                 <select value={filters.topicDecision}
                   onChange={(event) => setFilters({ ...filters, topicDecision: event.target.value })}>
-                  <option value="">All decisions</option>
-                  <option value="PROPOSE">Propose</option><option value="WATCH">Watch</option>
-                  <option value="IGNORE">Ignore</option>
+                  <option value="">{t("All decisions")}</option>
+                  <option value="PROPOSE">{t("Propose")}</option><option value="WATCH">{t("Watch")}</option>
+                  <option value="IGNORE">{t("Ignore")}</option>
                 </select>
               </label>
-              <label>Updated after
+              <label>{t("Updated after")}
                 <input type="date" value={filters.updatedAfter}
                   onChange={(event) => setFilters({ ...filters, updatedAfter: event.target.value })} />
               </label>
-              <label>Updated before
+              <label>{t("Updated before")}
                 <input type="date" value={filters.updatedBefore}
                   onChange={(event) => setFilters({ ...filters, updatedBefore: event.target.value })} />
               </label>
               <div className="filter-actions">
-                <button className="primary-button" type="submit">Apply filters</button>
-                <button className="text-button" type="button" onClick={resetFilters}>Reset all</button>
+                <button className="primary-button" type="submit">{t("Apply filters")}</button>
+                <button className="text-button" type="button" onClick={resetFilters}>{t("Reset all")}</button>
               </div>
             </form>
           </details>
@@ -626,7 +636,7 @@ function App() {
 
         {actionSuccess && <div className="success-banner" role="status">
           {actionSuccess}
-          <button type="button" className="text-button" onClick={() => setActionSuccess(null)}>Dismiss</button>
+          <button type="button" className="text-button" onClick={() => setActionSuccess(null)}>{t("Dismiss")}</button>
         </div>}
 
         {error && <div className="error-banner" role="alert">{error}</div>}
