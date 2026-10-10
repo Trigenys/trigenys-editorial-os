@@ -48,7 +48,6 @@ from editorial_os_api.vertical_packs.builtin import get_builtin_vertical_pack
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-
 RUN_ID = UUID("13624834-42e5-46e7-bda9-f1a5da72cd44")
 EXPECTED_TITLE = "The 20-metre neobank: How Mukuru is solving the gap between receiving cash and spending it"
 OFFICIAL_SOURCES = {
