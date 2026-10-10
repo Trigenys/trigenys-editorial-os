@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type WorkflowStatus =
   | "INGESTED"
@@ -29,6 +29,10 @@ type RunSummary = {
   topic_title: string | null;
   topic_decision: string | null;
   topic_urgency: string | null;
+  topic_composite_score?: number | null;
+  topic_proposed_angle?: string | null;
+  topic_proposed_format?: string | null;
+  topic_sources?: string[];
   pending_gate: string | null;
   created_at: string;
   updated_at: string;
@@ -151,6 +155,8 @@ type RunDetail = {
   recovery_action: "RETRY" | "RESUME" | null;
 };
 
+type QueueView = "awaiting" | "all" | "watch" | "blocked" | "retryable";
+
 type Filters = {
   vertical: string;
   status: string;
@@ -202,6 +208,19 @@ function shortId(value: string) {
   return value.slice(0, 8);
 }
 
+function humanStatus(value: string) {
+  return value.replaceAll("_", " ").toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function safeSourceUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function statusTone(status: string) {
   if (["PUBLISHED", "DISTRIBUTED", "MEASURED", "TOPIC_APPROVED", "EDITORIAL_APPROVED", "PUBLISH_APPROVED"].includes(status)) {
     return "positive";
@@ -240,10 +259,19 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [filters, setFilters] = useState<Filters>(initialFilters);
-  const [operatorId, setOperatorId] = useState("operator");
+  const [operatorId, setOperatorId] = useState(deploymentLabel === "local" ? "operator" : "");
+  const [identityStatus, setIdentityStatus] = useState<"loading" | "verified" | "unavailable">(
+    deploymentLabel === "local" ? "verified" : "loading",
+  );
   const [reason, setReason] = useState("");
+  const [search, setSearch] = useState("");
+  const [queueView, setQueueView] = useState<QueueView>("awaiting");
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const detailRequestId = useRef(0);
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Cloudflare Access authenticates the entire Worker before this UI loads.
@@ -270,14 +298,9 @@ function App() {
       const response = await fetch(`/api/operator/runs?${params.toString()}`);
       const payload = await readJson<RunSummary[]>(response);
       setRuns(payload);
-      setSelectedId((current) => {
-        if (current && payload.some((run) => run.id === current)) return current;
-        return payload[0]?.id ?? null;
-      });
+
     } catch (requestError) {
-      setRuns([]);
-      setSelectedId(null);
-      setDetail(null);
+      // Keep the last good data; a failed refresh must not imply zero runs.
       setError(requestError instanceof Error ? requestError.message : "Unable to load runs.");
     } finally {
       setLoadingRuns(false);
@@ -285,18 +308,42 @@ function App() {
   }, []);
 
   const loadDetail = useCallback(async (runId: string) => {
+    const requestId = ++detailRequestId.current;
     setLoadingDetail(true);
     setError(null);
     try {
       const response = await fetch(`/api/operator/runs/${runId}`);
       const payload = await readJson<RunDetail>(response);
-      setDetail(payload);
+      if (requestId === detailRequestId.current) setDetail(payload);
     } catch (requestError) {
-      setDetail(null);
-      setError(requestError instanceof Error ? requestError.message : "Unable to load run.");
+      if (requestId === detailRequestId.current) {
+        setDetail(null);
+        setError(requestError instanceof Error ? requestError.message : "Unable to load run.");
+      }
     } finally {
-      setLoadingDetail(false);
+      if (requestId === detailRequestId.current) setLoadingDetail(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (deploymentLabel === "local") return;
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/operator/session");
+        const session = await readJson<{ actor_id: string | null }>(response);
+        if (active) {
+          setOperatorId(session.actor_id ?? "");
+          setIdentityStatus(session.actor_id ? "verified" : "unavailable");
+        }
+      } catch {
+        if (active) {
+          setOperatorId("");
+          setIdentityStatus("unavailable");
+        }
+      }
+    })();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -304,21 +351,51 @@ function App() {
   }, [loadRuns]);
 
   useEffect(() => {
+    setPendingAction(null);
+    setReviewConfirmed(false);
+    setReason("");
     if (selectedId) {
+      setDetail(null);
       void loadDetail(selectedId);
     } else {
+      detailRequestId.current += 1;
       setDetail(null);
+      setLoadingDetail(false);
     }
   }, [selectedId, loadDetail]);
 
   const queueCounts = useMemo(() => {
     return {
-      waiting: runs.filter((run) => run.pending_gate !== null).length,
+      waiting: runs.filter((run) => Boolean(run.pending_gate)).length,
       blocked: runs.filter((run) => run.status === "BLOCKED").length,
       retryable: runs.filter((run) => run.status === "FAILED_RETRYABLE").length,
       watch: runs.filter((run) => run.topic_decision === "WATCH").length,
     };
   }, [runs]);
+
+  const visibleRuns = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return runs.filter((run) => {
+      if (queueView === "awaiting" && !run.pending_gate) return false;
+      if (queueView === "watch" && run.topic_decision !== "WATCH") return false;
+      if (queueView === "blocked" && run.status !== "BLOCKED") return false;
+      if (queueView === "retryable" && run.status !== "FAILED_RETRYABLE") return false;
+      return !query || [
+        run.topic_title, run.vertical_key, run.topic_proposed_angle, run.status, run.id,
+      ].some((value) => value?.toLocaleLowerCase().includes(query));
+    }).sort((a, b) => Number(Boolean(b.pending_gate)) - Number(Boolean(a.pending_gate)) ||
+      Date.parse(b.updated_at) - Date.parse(a.updated_at));
+  }, [runs, queueView, search]);
+
+  useEffect(() => {
+    if (!visibleRuns.some((run) => run.id === selectedId)) {
+      setSelectedId(visibleRuns[0]?.id ?? null);
+    }
+  }, [visibleRuns, selectedId]);
+
+  const decisionRequiresNote = ["REJECTED", "REVISION_REQUESTED", "RECOVER"].includes(pendingAction ?? "");
+  const canSubmitAction = reviewConfirmed && Boolean(operatorId.trim()) &&
+    (!decisionRequiresNote || reason.trim().length >= 10);
 
   async function submitGate(outcome: string) {
     if (!detail || !operatorId.trim()) return;
@@ -341,6 +418,9 @@ function App() {
       const payload = await readJson<RunDetail>(response);
       setDetail(payload);
       setReason("");
+      setReviewConfirmed(false);
+      setPendingAction(null);
+      setActionSuccess(`Decision recorded: ${humanStatus(outcome)}.`);
       await loadRuns(filters);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Gate action failed.");
@@ -368,6 +448,9 @@ function App() {
       const payload = await readJson<RunDetail>(response);
       setDetail(payload);
       setReason("");
+      setReviewConfirmed(false);
+      setPendingAction(null);
+      setActionSuccess("Recovery action recorded.");
       await loadRuns(filters);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Recovery failed.");
@@ -381,14 +464,16 @@ function App() {
     void loadRuns(filters);
   }
 
-  function setQueueFilter(decision: string, status: string = "") {
-    const next = {
-      ...filters,
-      topicDecision: decision,
-      status,
-    };
-    setFilters(next);
-    void loadRuns(next);
+  function chooseQueue(view: QueueView) {
+    setQueueView(view);
+    setPendingAction(null);
+  }
+
+  function resetFilters() {
+    setFilters(initialFilters);
+    setQueueView("awaiting");
+    setSearch("");
+    void loadRuns(initialFilters);
   }
 
   const gateActions =
@@ -409,22 +494,19 @@ function App() {
           </div>
         </div>
 
-        <nav className="queue-nav" aria-label="Queues">
-          <button type="button" onClick={() => setQueueFilter("", "")}>
-            <span>All runs</span><b>{runs.length}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("PROPOSE")}>
-            <span>Propose</span><b>{runs.filter((run) => run.topic_decision === "PROPOSE").length}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("WATCH")}>
-            <span>Watch</span><b>{queueCounts.watch}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("", "BLOCKED")}>
-            <span>Blocked</span><b>{queueCounts.blocked}</b>
-          </button>
-          <button type="button" onClick={() => setQueueFilter("", "FAILED_RETRYABLE")}>
-            <span>Retryable</span><b>{queueCounts.retryable}</b>
-          </button>
+        <nav className="queue-nav" aria-label="Editorial queues">
+          {([
+            ["awaiting", "Needs review", queueCounts.waiting],
+            ["all", "All runs", runs.length],
+            ["watch", "Monitoring", queueCounts.watch],
+            ["blocked", "Blocked", queueCounts.blocked],
+            ["retryable", "Retryable", queueCounts.retryable],
+          ] as const).map(([view, label, count]) => (
+            <button key={view} type="button" className={queueView === view ? "active" : ""}
+              aria-pressed={queueView === view} onClick={() => chooseQueue(view)}>
+              <span>{label}</span><b>{count}</b>
+            </button>
+          ))}
         </nav>
 
         <div className="operator-identity">
@@ -434,13 +516,16 @@ function App() {
             <a href="/cdn-cgi/access/logout">Sign out</a>
           </div>
 
-          <label htmlFor="operator-id">Operator identity</label>
-          <input
-            id="operator-id"
-            value={operatorId}
-            onChange={(event) => setOperatorId(event.target.value)}
-            placeholder="operator"
-          />
+          <label htmlFor={deploymentLabel === "local" ? "operator-id" : undefined}>Operator identity</label>
+          {deploymentLabel === "local" ? (
+            <input id="operator-id" value={operatorId}
+              onChange={(event) => setOperatorId(event.target.value)} placeholder="operator" />
+          ) : (
+            <div className="verified-identity" role="status">
+              {identityStatus === "loading" ? "Verifying signed-in identity…" :
+                identityStatus === "verified" ? operatorId : "Identity unavailable — decisions disabled"}
+            </div>
+          )}
           <small>Recorded on every gate and recovery action.</small>
         </div>
       </aside>
@@ -449,82 +534,91 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Trigenys Editorial OS</p>
-            <h1>Control room</h1>
+            <h1>Editorial control room</h1>
+            <p className="workspace-subtitle">Review incoming stories, examine context and make informed decisions.</p>
             <span className="deployment-badge">{deploymentLabel}</span>
           </div>
-          <button
-            className="ghost-button"
-            type="button"
-            onClick={() => void loadRuns(filters)}
-          >
-            Refresh
+          <button className="ghost-button refresh-button" type="button"
+            disabled={loadingRuns} onClick={() => void loadRuns(filters)}>
+            {loadingRuns ? "Refreshing…" : "↻ Refresh"}
           </button>
         </header>
 
         <section className="summary-grid" aria-label="Queue summary">
-          <article><span>Visible runs</span><strong>{runs.length}</strong></article>
-          <article><span>Awaiting gate</span><strong>{queueCounts.waiting}</strong></article>
-          <article><span>Blocked</span><strong>{queueCounts.blocked}</strong></article>
-          <article><span>Retryable</span><strong>{queueCounts.retryable}</strong></article>
+          {([
+            ["awaiting", "Needs your review", queueCounts.waiting, "Decisions pending", "attention"],
+            ["watch", "Monitoring", queueCounts.watch, "Topics being watched", ""],
+            ["blocked", "Blocked", queueCounts.blocked, queueCounts.blocked ? "Needs intervention" : "No blockers", queueCounts.blocked ? "risk" : ""],
+            ["all", "Total runs", runs.length, "In current API results", ""],
+          ] as const).map(([view, label, count, description, tone]) => (
+            <button key={view} type="button"
+              className={`kpi-card ${tone} ${queueView === view ? "selected" : ""}`}
+              aria-pressed={queueView === view} onClick={() => chooseQueue(view)}>
+              <span className="kpi-label">{label}</span>
+              <strong>{loadingRuns && runs.length === 0 ? "—" : count}</strong>
+              <span className="kpi-description">{description}</span>
+            </button>
+          ))}
         </section>
 
-        <form className="filters" onSubmit={applyFilters}>
-          <input
-            value={filters.vertical}
-            onChange={(event) => setFilters({ ...filters, vertical: event.target.value })}
-            placeholder="Vertical"
-            aria-label="Vertical"
-          />
-          <select
-            value={filters.status}
-            onChange={(event) => setFilters({ ...filters, status: event.target.value })}
-            aria-label="Workflow status"
-          >
-            <option value="">All statuses</option>
-            {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-          </select>
-          <select
-            value={filters.risk}
-            onChange={(event) => setFilters({ ...filters, risk: event.target.value })}
-            aria-label="Risk class"
-          >
-            <option value="">All risks</option>
-            {["R0", "R1", "R2", "R3"].map((risk) => <option key={risk} value={risk}>{risk}</option>)}
-          </select>
-          <select
-            value={filters.topicDecision}
-            onChange={(event) => setFilters({ ...filters, topicDecision: event.target.value })}
-            aria-label="Topic decision"
-          >
-            <option value="">All topic decisions</option>
-            <option value="PROPOSE">PROPOSE</option>
-            <option value="WATCH">WATCH</option>
-            <option value="IGNORE">IGNORE</option>
-          </select>
-          <input
-            type="date"
-            value={filters.updatedAfter}
-            onChange={(event) => setFilters({ ...filters, updatedAfter: event.target.value })}
-            aria-label="Updated after"
-          />
-          <input
-            type="date"
-            value={filters.updatedBefore}
-            onChange={(event) => setFilters({ ...filters, updatedBefore: event.target.value })}
-            aria-label="Updated before"
-          />
-          <button className="primary-button" type="submit">Apply</button>
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => {
-              setFilters(initialFilters);
-              void loadRuns(initialFilters);
-            }}
-          >
-            Reset
-          </button>
-        </form>
+        <div className="filter-surface">
+          <div className="search-toolbar">
+            <label htmlFor="run-search">Search stories</label>
+            <input id="run-search" className="search-input" type="search"
+              placeholder="Title, vertical, angle or workflow ID…"
+              value={search} onChange={(event) => setSearch(event.target.value)} />
+            <span className="result-count" aria-live="polite">{visibleRuns.length} of {runs.length} shown</span>
+          </div>
+          <details className="advanced-filters">
+            <summary>Advanced filters <span>Vertical, status, risk and dates</span></summary>
+            <form className="filters" onSubmit={applyFilters}>
+              <label>Vertical
+                <input value={filters.vertical}
+                  onChange={(event) => setFilters({ ...filters, vertical: event.target.value })}
+                  placeholder="All verticals" />
+              </label>
+              <label>Status
+                <select value={filters.status}
+                  onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
+                  <option value="">All statuses</option>
+                  {statusOptions.map((status) => <option key={status} value={status}>{humanStatus(status)}</option>)}
+                </select>
+              </label>
+              <label>Risk
+                <select value={filters.risk}
+                  onChange={(event) => setFilters({ ...filters, risk: event.target.value })}>
+                  <option value="">All risks</option>
+                  {["R0", "R1", "R2", "R3"].map((risk) => <option key={risk} value={risk}>{risk}</option>)}
+                </select>
+              </label>
+              <label>Topic decision
+                <select value={filters.topicDecision}
+                  onChange={(event) => setFilters({ ...filters, topicDecision: event.target.value })}>
+                  <option value="">All decisions</option>
+                  <option value="PROPOSE">Propose</option><option value="WATCH">Watch</option>
+                  <option value="IGNORE">Ignore</option>
+                </select>
+              </label>
+              <label>Updated after
+                <input type="date" value={filters.updatedAfter}
+                  onChange={(event) => setFilters({ ...filters, updatedAfter: event.target.value })} />
+              </label>
+              <label>Updated before
+                <input type="date" value={filters.updatedBefore}
+                  onChange={(event) => setFilters({ ...filters, updatedBefore: event.target.value })} />
+              </label>
+              <div className="filter-actions">
+                <button className="primary-button" type="submit">Apply filters</button>
+                <button className="text-button" type="button" onClick={resetFilters}>Reset all</button>
+              </div>
+            </form>
+          </details>
+        </div>
+
+        {actionSuccess && <div className="success-banner" role="status">
+          {actionSuccess}
+          <button type="button" className="text-button" onClick={() => setActionSuccess(null)}>Dismiss</button>
+        </div>}
 
         {error && <div className="error-banner" role="alert">{error}</div>}
 
@@ -532,34 +626,36 @@ function App() {
           <section className="run-list-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Queue</p>
-                <h2>Workflow runs</h2>
+                <p className="eyebrow">Editorial queue</p>
+                <h2>{queueView === "awaiting" ? "Awaiting a decision" : queueView === "all" ? "All workflow runs" : humanStatus(queueView)}</h2>
+                <p className="queue-helper">Actionable stories appear first.</p>
               </div>
-              {loadingRuns && <span className="loading-dot">Loading</span>}
+              {loadingRuns && <span className="loading-dot" role="status">Loading…</span>}
             </div>
 
             <div className="run-list">
-              {!loadingRuns && runs.length === 0 && (
+              {!loadingRuns && !error && visibleRuns.length === 0 && (
                 <div className="empty-state">
-                  No runs match these filters.
+                  No stories match this view. Try another queue or reset your filters.
                 </div>
               )}
-              {runs.map((run) => (
+              {visibleRuns.map((run) => (
                 <button
                   type="button"
-                  className={`run-card ${selectedId === run.id ? "selected" : ""}`}
+                  className={`run-card ${selectedId === run.id ? "selected" : ""} ${run.pending_gate ? "needs-review" : ""}`}
                   key={run.id}
+                  aria-pressed={selectedId === run.id}
                   onClick={() => setSelectedId(run.id)}
                 >
                   <div className="run-card-top">
-                    <span className={`status-pill ${statusTone(run.status)}`}>{run.status}</span>
-                    <span>{run.risk_class} · {run.confidence_class}</span>
+                    <span className={`status-pill ${statusTone(run.status)}`}>{humanStatus(run.status)}</span>
+                    <span className="risk-meta">Risk {run.risk_class}</span>
                   </div>
                   <strong>{run.topic_title ?? `Run ${shortId(run.id)}`}</strong>
-                  <p>{run.vertical_key} · {run.topic_decision ?? "No topic decision"}</p>
+                  <p>{run.vertical_key}{run.topic_urgency ? ` · ${run.topic_urgency} urgency` : ""}</p>
                   <div className="run-card-bottom">
                     <span>{formatDate(run.updated_at)}</span>
-                    {run.pending_gate && <b>Gate {run.pending_gate}</b>}
+                    {run.pending_gate && <b className="needs-decision-tag">Review gate {run.pending_gate} →</b>}
                   </div>
                 </button>
               ))}
@@ -591,47 +687,97 @@ function App() {
                 </div>
 
                 {(detail.run.pending_gate || detail.recovery_action) && (
-                  <section className="action-panel">
-                    <div>
-                      <p className="eyebrow">Human control</p>
-                      <h3>
-                        {detail.run.pending_gate
-                          ? `Gate ${detail.run.pending_gate} requires a decision`
-                          : `${detail.recovery_action} is available`}
-                      </h3>
-                      {detail.gate_artifact && (
-                        <p className="muted">
-                          {detail.gate_artifact.artifact_type} · v{detail.gate_artifact.artifact_version} · {shortId(detail.gate_artifact.artifact_id)}
-                        </p>
-                      )}
+                  <section className="review-panel" aria-labelledby="decision-heading">
+                    <div className="review-heading">
+                      <div>
+                        <p className="eyebrow">Human decision · {detail.run.pending_gate ? `Gate ${detail.run.pending_gate}` : "Recovery"}</p>
+                        <h3 id="decision-heading">{detail.run.pending_gate ? "Review this story before deciding" : "Review before restarting the workflow"}</h3>
+                        <p>Decision outcomes are recorded in the audit trail.</p>
+                      </div>
+                      <span className={`status-pill ${statusTone(detail.run.status)}`}>{humanStatus(detail.run.status)}</span>
                     </div>
-                    <textarea
-                      value={reason}
-                      onChange={(event) => setReason(event.target.value)}
-                      placeholder="Reason or operator note"
-                      rows={3}
-                    />
-                    <div className="action-row">
-                      {gateActions.map((outcome) => (
-                        <button
-                          key={outcome}
-                          type="button"
-                          className={outcome === "APPROVED" ? "primary-button" : "ghost-button"}
-                          disabled={actionBusy || !operatorId.trim()}
-                          onClick={() => void submitGate(outcome)}
-                        >
-                          {outcome.replace("_", " ")}
-                        </button>
-                      ))}
-                      {detail.recovery_action && (
-                        <button
-                          type="button"
-                          className="primary-button"
-                          disabled={actionBusy || !operatorId.trim()}
-                          onClick={() => void recoverRun()}
-                        >
-                          {detail.recovery_action}
-                        </button>
+                    <div className="review-context">
+                      <div className="review-fact"><span>Risk</span><strong>{detail.run.risk_class} · {detail.run.confidence_class} confidence</strong></div>
+                      <div className="review-fact"><span>Urgency</span><strong>{detail.run.topic_urgency ?? "Not rated"}</strong></div>
+                      <div className="review-fact"><span>Topic score</span><strong>{detail.run.topic_composite_score ?? "Not scored"}</strong></div>
+                      <div className="review-fact"><span>Available evidence</span><strong>{(detail.run.topic_sources?.length ?? 0) + detail.evidence.length} source links · {detail.claims.length} claims</strong></div>
+                    </div>
+                    {detail.run.topic_proposed_angle && (
+                      <div className="editorial-angle">
+                        <span>Proposed angle{detail.run.topic_proposed_format ? ` · ${detail.run.topic_proposed_format}` : ""}</span>
+                        <p>{detail.run.topic_proposed_angle}</p>
+                      </div>
+                    )}
+                    {(detail.run.topic_sources?.length ?? 0) > 0 ? (
+                      <div className="topic-sources">
+                        <strong>Original topic sources</strong>
+                        <ul>{detail.run.topic_sources?.map((source, index) => {
+                          const href = safeSourceUrl(source);
+                          return <li key={`${source}-${index}`}>{href
+                            ? <a href={href} target="_blank" rel="noopener noreferrer">{new URL(href).hostname} ↗</a>
+                            : <span>{source}</span>}</li>;
+                        })}</ul>
+                      </div>
+                    ) : (
+                      <p className="review-caution">No original topic source links are attached yet. Consider this limitation before approving.</p>
+                    )}
+                    {detail.claims.some((claim) => claim.contested || claim.stale || claim.support_status !== "SUPPORTED") ||
+                      Boolean(detail.draft?.unsupported_factual_claims.length) ? (
+                      <p className="review-caution">Some claims may be unsupported, stale or contested. <a href="#evidence-panel">Inspect evidence ↓</a></p>
+                    ) : detail.evidence.length > 0 ? (
+                      <p className="review-support">Supporting material is available. <a href="#evidence-panel">Review claims and sources ↓</a></p>
+                    ) : null}
+                    {detail.gate_artifact && (
+                      <p className="review-artifact">Artifact: {detail.gate_artifact.artifact_type}, version {detail.gate_artifact.artifact_version} · {shortId(detail.gate_artifact.artifact_id)}</p>
+                    )}
+                    <div className="review-controls">
+                      <label className="review-checkbox">
+                        <input type="checkbox" checked={reviewConfirmed}
+                          onChange={(event) => { setReviewConfirmed(event.target.checked); setPendingAction(null); }} />
+                        <span>I have reviewed the information available for this decision.</span>
+                      </label>
+                      <label htmlFor="decision-note" className="note-label">Decision note
+                        <span>{decisionRequiresNote ? " · Required for rejection or revision (at least 10 characters)" : " · Optional, recommended for audit"}</span>
+                      </label>
+                      <textarea id="decision-note" value={reason} maxLength={1000}
+                        onChange={(event) => setReason(event.target.value)}
+                        placeholder="Explain the editorial rationale or missing information…" rows={3} />
+                      <div className="action-row" aria-label="Decision outcomes">
+                        {gateActions.map((outcome) => (
+                          <button key={outcome} type="button"
+                            aria-pressed={pendingAction === outcome}
+                            className={`${outcome === "APPROVED" ? "primary-button" : "ghost-button"} ${pendingAction === outcome ? "action-selected" : ""}`}
+                            disabled={actionBusy || !reviewConfirmed || !operatorId.trim()}
+                            onClick={() => setPendingAction(outcome)}>
+                            {humanStatus(outcome)}
+                          </button>
+                        ))}
+                        {detail.recovery_action && (
+                          <button type="button" className="ghost-button" aria-pressed={pendingAction === "RECOVER"}
+                            disabled={actionBusy || !reviewConfirmed || !operatorId.trim()}
+                            onClick={() => setPendingAction("RECOVER")}>
+                            {humanStatus(detail.recovery_action)} run
+                          </button>
+                        )}
+                      </div>
+                      {pendingAction && (
+                        <div className="decision-confirm" role="group" aria-label="Confirm your selected action">
+                          <div>
+                            <strong>Confirm: {pendingAction === "RECOVER" ? "Recover run" : humanStatus(pendingAction)}</strong>
+                            <p>This will be recorded for this workflow run. Check the outcome and note before continuing.</p>
+                            {decisionRequiresNote && reason.trim().length < 10 &&
+                              <p className="required-note">Add a reason of at least 10 characters to proceed.</p>}
+                          </div>
+                          <div className="confirmation-buttons">
+                            <button className="text-button" type="button" disabled={actionBusy}
+                              onClick={() => setPendingAction(null)}>Cancel</button>
+                            <button className="primary-button" type="button" disabled={actionBusy || !canSubmitAction}
+                              onClick={() => pendingAction === "RECOVER"
+                                ? void recoverRun() : void submitGate(pendingAction)}>
+                              {actionBusy ? "Saving…" : "Confirm decision"}
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </section>
@@ -667,7 +813,7 @@ function App() {
                     ) : <div className="empty-inline">No draft yet.</div>}
                   </section>
 
-                  <section className="card-section">
+                  <section className="card-section" id="evidence-panel">
                     <div className="section-heading">
                       <div><p className="eyebrow">Evidence</p><h3>Claims & sources</h3></div>
                       <span>{detail.claims.length} claims · {detail.evidence.length} sources</span>

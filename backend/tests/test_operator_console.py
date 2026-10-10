@@ -119,6 +119,33 @@ def test_operator_queue_filters_and_never_exposes_run_context() -> None:
     assert "must-never-reach-browser" not in detail.text
 
 
+def test_cloudflare_verified_identity_is_used_for_operator_audit() -> None:
+    run, _ = _candidate_run()
+    headers = {"X-Editorial-Verified-Actor": "verified@trigenys.com"}
+
+    identity = client.get("/api/operator/session", headers=headers)
+    assert identity.status_code == 200
+    assert identity.json() == {"actor_id": "verified@trigenys.com"}
+
+    response = client.post(
+        f"/api/operator/runs/{run.id}/gate",
+        headers=headers,
+        json={
+            "outcome": "APPROVED",
+            "actor_id": "spoofed@invalid.test",
+            "reason": "Topic context reviewed.",
+        },
+    )
+    assert response.status_code == 200
+
+    with get_session_factory()() as session:
+        decision = session.scalar(
+            select(GateDecision).where(GateDecision.workflow_run_id == run.id)
+        )
+        assert decision is not None
+        assert decision.actor_id == "verified@trigenys.com"
+
+
 def test_gate_action_resolves_canonical_artifact_server_side_and_audits_actor() -> None:
     run, topic = _candidate_run()
 

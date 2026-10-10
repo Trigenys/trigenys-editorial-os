@@ -66,6 +66,20 @@ router = APIRouter(
 )
 
 
+
+
+def _trusted_access_actor(request: Request) -> str | None:
+    # The Worker overwrites this header after Cloudflare Access authentication.
+    # Bare API-token clients retain the existing explicit actor_id behaviour.
+    identity = request.headers.get("x-editorial-verified-actor")
+    return identity if identity and len(identity) <= 255 else None
+
+
+@router.get("/session", response_model=dict[str, str | None])
+def operator_session(request: Request) -> dict[str, str | None]:
+    return {"actor_id": _trusted_access_actor(request)}
+
+
 def _service(request: Request) -> OperatorConsoleService:
     return OperatorConsoleService(get_session_factory(request.app.state.settings))
 
@@ -112,6 +126,9 @@ def decide_gate(
     request: Request,
 ) -> OperatorRunDetail:
     try:
+        verified_actor = _trusted_access_actor(request)
+        if verified_actor:
+            action = action.model_copy(update={"actor_id": verified_actor})
         return _service(request).decide_gate(workflow_run_id, action)
     except OperatorRunNotFoundError as exc:
         raise HTTPException(
@@ -132,6 +149,9 @@ def recover_run(
     request: Request,
 ) -> OperatorRunDetail:
     try:
+        verified_actor = _trusted_access_actor(request)
+        if verified_actor:
+            action = action.model_copy(update={"actor_id": verified_actor})
         return _service(request).recover(workflow_run_id, action)
     except OperatorRunNotFoundError as exc:
         raise HTTPException(

@@ -82,6 +82,12 @@ class Default(WorkerEntrypoint):
                     {"detail": "Cloudflare Access authentication is required."},
                     status=401,
                 )
+            identity = _text(request.headers.get("Cf-Access-Authenticated-User-Email"))
+            if identity is None or len(identity) > 255:
+                return Response.json(
+                    {"detail": "Verified Cloudflare Access identity is required."},
+                    status=401,
+                )
             operator_token = _text(getattr(self.env, "EDITORIAL_OS_OPERATOR_TOKEN", None))
             if operator_token is None:
                 return Response.json(
@@ -94,6 +100,8 @@ class Default(WorkerEntrypoint):
             # Pass its native js_object instead; this preserves method/body.
             request = JSRequest.new(request.js_object)
             request.headers.set("Authorization", f"Bearer {operator_token}")
+            # Never forward a client-supplied actor: replace it with Access identity.
+            request.headers.set("X-Editorial-Verified-Actor", identity)
 
         application = getattr(self, "_editorial_os_app", None)
         if application is None:
