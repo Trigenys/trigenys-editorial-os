@@ -645,11 +645,11 @@ function App() {
           <section className="run-list-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Editorial queue</p>
+                <p className="eyebrow">{t("Editorial queue")}</p>
                 <h2>{queueView === "awaiting" ? "Awaiting a decision" : queueView === "all" ? "All workflow runs" : humanStatus(queueView)}</h2>
-                <p className="queue-helper">Actionable stories appear first.</p>
+                <p className="queue-helper">{t("Actionable stories appear first.")}</p>
               </div>
-              {loadingRuns && <span className="loading-dot" role="status">Loading…</span>}
+              {loadingRuns && <span className="loading-dot" role="status">{t("Loading…")}</span>}
             </div>
 
             <div className="run-list">
@@ -682,9 +682,9 @@ function App() {
           </section>
 
           <section className="detail-panel">
-            {loadingDetail && <div className="empty-state">Loading run detail…</div>}
+            {loadingDetail && <div className="empty-state">{t("Loading run detail…")}</div>}
             {!loadingDetail && !detail && (
-              <div className="empty-state">Select a workflow run to inspect it.</div>
+              <div className="empty-state">{t("Select a workflow run to inspect it.")}</div>
             )}
 
             {!loadingDetail && detail && (
@@ -711,15 +711,15 @@ function App() {
                       <div>
                         <p className="eyebrow">Human decision · {detail.run.pending_gate ? `Gate ${detail.run.pending_gate}` : "Recovery"}</p>
                         <h3 id="decision-heading">{detail.run.pending_gate ? "Review this story before deciding" : "Review before restarting the workflow"}</h3>
-                        <p>Decision outcomes are recorded in the audit trail.</p>
+                        <p>{t("Decision outcomes are recorded in the audit trail.")}</p>
                       </div>
                       <span className={`status-pill ${statusTone(detail.run.status)}`}>{humanStatus(detail.run.status)}</span>
                     </div>
                     <div className="review-context">
-                      <div className="review-fact"><span>Risk</span><strong>{detail.run.risk_class} · {detail.run.confidence_class} confidence</strong></div>
-                      <div className="review-fact"><span>Urgency</span><strong>{detail.run.topic_urgency ?? "Not rated"}</strong></div>
-                      <div className="review-fact"><span>Topic score</span><strong>{detail.run.topic_composite_score ?? "Not scored"}</strong></div>
-                      <div className="review-fact"><span>Available evidence</span><strong>{(detail.run.topic_sources?.length ?? 0) + detail.evidence.length} source links · {detail.claims.length} claims</strong></div>
+                      <div className="review-fact"><span>{t("Risk")}</span><strong>{detail.run.risk_class} · {detail.run.confidence_class} confidence</strong></div>
+                      <div className="review-fact"><span>{t("Urgency")}</span><strong>{detail.run.topic_urgency ?? "Not rated"}</strong></div>
+                      <div className="review-fact"><span>{t("Topic score")}</span><strong>{detail.run.topic_composite_score ?? "Not scored"}</strong></div>
+                      <div className="review-fact"><span>{t("Available evidence")}</span><strong>{(detail.run.topic_sources?.length ?? 0) + detail.evidence.length} source links · {detail.claims.length} claims</strong></div>
                     </div>
                     {detail.run.topic_proposed_angle && (
                       <div className="editorial-angle">
@@ -729,7 +729,7 @@ function App() {
                     )}
                     {(detail.run.topic_sources?.length ?? 0) > 0 ? (
                       <div className="topic-sources">
-                        <strong>Original topic sources</strong>
+                        <strong>{t("Original topic sources")}</strong>
                         <ul>{detail.run.topic_sources?.map((source, index) => {
                           const href = safeSourceUrl(source);
                           return <li key={`${source}-${index}`}>{href
@@ -738,13 +738,13 @@ function App() {
                         })}</ul>
                       </div>
                     ) : (
-                      <p className="review-caution">No original topic source links are attached yet. Consider this limitation before approving.</p>
+                      <p className="review-caution">{t("No original topic source links are attached yet. Consider this limitation before approving.")}</p>
                     )}
                     {detail.claims.some((claim) => claim.contested || claim.stale || claim.support_status !== "SUPPORTED") ||
                       Boolean(detail.draft?.unsupported_factual_claims.length) ? (
-                      <p className="review-caution">Some claims may be unsupported, stale or contested. <a href="#evidence-panel">Inspect evidence ↓</a></p>
+                      <p className="review-caution">{t("Some claims may be unsupported, stale or contested.")} <a href="#evidence-panel">{t("Inspect evidence ↓")}</a></p>
                     ) : detail.evidence.length > 0 ? (
-                      <p className="review-support">Supporting material is available. <a href="#evidence-panel">Review claims and sources ↓</a></p>
+                      <p className="review-support">{t("Supporting material is available.")} <a href="#evidence-panel">{t("Review claims and sources ↓")}</a></p>
                     ) : null}
                     {detail.gate_artifact && (
                       <p className="review-artifact">Artifact: {detail.gate_artifact.artifact_type}, version {detail.gate_artifact.artifact_version} · {shortId(detail.gate_artifact.artifact_id)}</p>
@@ -753,15 +753,15 @@ function App() {
                       <label className="review-checkbox">
                         <input type="checkbox" checked={reviewConfirmed}
                           onChange={(event) => { setReviewConfirmed(event.target.checked); setPendingAction(null); }} />
-                        <span>I have reviewed the information available for this decision.</span>
+                        <span>{t("I have reviewed the information available for this decision.")}</span>
                       </label>
                       <label htmlFor="decision-note" className="note-label">Decision note
                         <span>{decisionRequiresNote ? " · Required for rejection or revision (at least 10 characters)" : " · Optional, recommended for audit"}</span>
                       </label>
                       <textarea id="decision-note" value={reason} maxLength={1000}
                         onChange={(event) => setReason(event.target.value)}
-                        placeholder="Explain the editorial rationale or missing information…" rows={3} />
-                      <div className="action-row" aria-label="Decision outcomes">
+                        placeholder={t("Explain the editorial rationale or missing information…")} rows={3} />
+                      <div className="action-row" aria-label={t("Decision outcomes")}>
                         {gateActions.map((outcome) => (
                           <button key={outcome} type="button"
                             aria-pressed={pendingAction === outcome}
@@ -780,16 +780,16 @@ function App() {
                         )}
                       </div>
                       {pendingAction && (
-                        <div className="decision-confirm" role="group" aria-label="Confirm your selected action">
+                        <div className="decision-confirm" role="group" aria-label={t("Confirm your selected action")}>
                           <div>
                             <strong>Confirm: {pendingAction === "RECOVER" ? "Recover run" : humanStatus(pendingAction)}</strong>
-                            <p>This will be recorded for this workflow run. Check the outcome and note before continuing.</p>
+                            <p>{t("This will be recorded for this workflow run. Check the outcome and note before continuing.")}</p>
                             {decisionRequiresNote && reason.trim().length < 10 &&
-                              <p className="required-note">Add a reason of at least 10 characters to proceed.</p>}
+                              <p className="required-note">{t("Add a reason of at least 10 characters to proceed.")}</p>}
                           </div>
                           <div className="confirmation-buttons">
                             <button className="text-button" type="button" disabled={actionBusy}
-                              onClick={() => setPendingAction(null)}>Cancel</button>
+                              onClick={() => setPendingAction(null)}>{t("Cancel")}</button>
                             <button className="primary-button" type="button" disabled={actionBusy || !canSubmitAction}
                               onClick={() => pendingAction === "RECOVER"
                                 ? void recoverRun() : void submitGate(pendingAction)}>
@@ -803,16 +803,16 @@ function App() {
                 )}
 
                 <section className="metric-strip">
-                  <article><span>Model calls</span><strong>{detail.usage.calls}</strong></article>
-                  <article><span>Tokens</span><strong>{(detail.usage.input_tokens + detail.usage.output_tokens).toLocaleString()}</strong></article>
-                  <article><span>Cost</span><strong>${Number(detail.usage.total_cost_usd).toFixed(4)}</strong></article>
-                  <article><span>Avg latency</span><strong>{detail.usage.average_latency_ms ? `${Math.round(detail.usage.average_latency_ms)} ms` : "—"}</strong></article>
+                  <article><span>{t("Model calls")}</span><strong>{detail.usage.calls}</strong></article>
+                  <article><span>{t("Tokens")}</span><strong>{(detail.usage.input_tokens + detail.usage.output_tokens).toLocaleString()}</strong></article>
+                  <article><span>{t("Cost")}</span><strong>${Number(detail.usage.total_cost_usd).toFixed(4)}</strong></article>
+                  <article><span>{t("Avg latency")}</span><strong>{detail.usage.average_latency_ms ? `${Math.round(detail.usage.average_latency_ms)} ms` : "—"}</strong></article>
                 </section>
 
                 <div className="detail-sections">
                   <section className="card-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Editorial</p><h3>Draft preview</h3></div>
+                      <div><p className="eyebrow">{t("Editorial")}</p><h3>{t("Draft preview")}</h3></div>
                       {detail.draft && <span>{detail.draft.locale} · v{detail.draft.version}</span>}
                     </div>
                     {detail.draft ? (
@@ -822,19 +822,19 @@ function App() {
                         <div className="draft-body">{detail.draft.body}</div>
                         {detail.draft.unsupported_factual_claims.length > 0 && (
                           <div className="warning-box">
-                            <strong>Unsupported factual claims</strong>
+                            <strong>{t("Unsupported factual claims")}</strong>
                             <ul>
                               {detail.draft.unsupported_factual_claims.map((claim) => <li key={claim}>{claim}</li>)}
                             </ul>
                           </div>
                         )}
                       </article>
-                    ) : <div className="empty-inline">No draft yet.</div>}
+                    ) : <div className="empty-inline">{t("No draft yet.")}</div>}
                   </section>
 
                   <section className="card-section" id="evidence-panel">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Evidence</p><h3>Claims & sources</h3></div>
+                      <div><p className="eyebrow">{t("Evidence")}</p><h3>{t("Claims & sources")}</h3></div>
                       <span>{detail.claims.length} claims · {detail.evidence.length} sources</span>
                     </div>
                     <div className="stack-list">
@@ -845,9 +845,9 @@ function App() {
                             <p>{claim.support_status} · {claim.confidence_class} · {claim.risk_class}</p>
                           </div>
                           <div className="tag-row">
-                            {claim.material && <span>material</span>}
-                            {claim.contested && <span className="warning-tag">contested</span>}
-                            {claim.stale && <span className="warning-tag">stale</span>}
+                            {claim.material && <span>{t("material")}</span>}
+                            {claim.contested && <span className="warning-tag">{t("contested")}</span>}
+                            {claim.stale && <span className="warning-tag">{t("stale")}</span>}
                           </div>
                         </article>
                       ))}
@@ -861,14 +861,14 @@ function App() {
                         </a>
                       ))}
                       {detail.claims.length === 0 && detail.evidence.length === 0 && (
-                        <div className="empty-inline">No evidence package yet.</div>
+                        <div className="empty-inline">{t("No evidence package yet.")}</div>
                       )}
                     </div>
                   </section>
 
                   <section className="card-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Creative</p><h3>Assets</h3></div>
+                      <div><p className="eyebrow">{t("Creative")}</p><h3>{t("Assets")}</h3></div>
                       <span>{detail.assets.length}</span>
                     </div>
                     <div className="asset-grid">
@@ -884,13 +884,13 @@ function App() {
                           </div>
                         </article>
                       ))}
-                      {detail.assets.length === 0 && <div className="empty-inline">No assets yet.</div>}
+                      {detail.assets.length === 0 && <div className="empty-inline">{t("No assets yet.")}</div>}
                     </div>
                   </section>
 
                   <section className="card-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Delivery</p><h3>Publication & distribution</h3></div>
+                      <div><p className="eyebrow">{t("Delivery")}</p><h3>{t("Publication & distribution")}</h3></div>
                     </div>
                     {detail.publication ? (
                       <div className="delivery-card">
@@ -899,10 +899,10 @@ function App() {
                           <p>{detail.publication.status} · {formatDate(detail.publication.published_at ?? detail.publication.scheduled_at)}</p>
                         </div>
                         {detail.publication.external_url && (
-                          <a href={detail.publication.external_url} target="_blank" rel="noreferrer">Open ↗</a>
+                          <a href={detail.publication.external_url} target="_blank" rel="noreferrer">{t("Open ↗")}</a>
                         )}
                       </div>
-                    ) : <div className="empty-inline">Not published yet.</div>}
+                    ) : <div className="empty-inline">{t("Not published yet.")}</div>}
                     <div className="distribution-grid">
                       {detail.distributions.map((item) => (
                         <article key={item.id}>
@@ -916,7 +916,7 @@ function App() {
 
                   <section className="card-section timeline-section">
                     <div className="section-heading">
-                      <div><p className="eyebrow">Audit</p><h3>Run timeline</h3></div>
+                      <div><p className="eyebrow">{t("Audit")}</p><h3>{t("Run timeline")}</h3></div>
                       <span>{detail.timeline.length} actions · {detail.gates.length} gate decisions</span>
                     </div>
                     <div className="timeline">
@@ -930,7 +930,7 @@ function App() {
                           </div>
                         </article>
                       ))}
-                      {detail.timeline.length === 0 && <div className="empty-inline">No workflow actions recorded yet.</div>}
+                      {detail.timeline.length === 0 && <div className="empty-inline">{t("No workflow actions recorded yet.")}</div>}
                     </div>
                   </section>
                 </div>
