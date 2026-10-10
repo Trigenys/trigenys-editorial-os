@@ -219,13 +219,13 @@ function statusTone(status: string) {
   return "neutral";
 }
 
-async function readJson<T>(response: Response): Promise<T> {
+async function readJson<T>(response: Response, locale: Locale = DEFAULT_LOCALE): Promise<T> {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     throw new Error(
       response.ok
-        ? "The server returned an unexpected response."
-        : `Request failed with HTTP ${response.status}.`,
+        ? translate(locale, "The server returned an unexpected response.")
+        : `${translate(locale, "Request failed with HTTP")} ${response.status}.`,
     );
   }
 
@@ -237,7 +237,7 @@ async function readJson<T>(response: Response): Promise<T> {
       "detail" in payload &&
       typeof payload.detail === "string"
         ? payload.detail
-        : `Request failed with HTTP ${response.status}`;
+        : `${translate(locale, "Request failed with HTTP")} ${response.status}`;
     throw new Error(detail);
   }
   return payload as T;
@@ -305,7 +305,7 @@ function App() {
     }
     try {
       const response = await fetch(`/api/operator/runs?${params.toString()}`);
-      const payload = await readJson<RunSummary[]>(response);
+      const payload = await readJson<RunSummary[]>(response, locale);
       setRuns(payload);
 
     } catch (requestError) {
@@ -322,7 +322,7 @@ function App() {
     setError(null);
     try {
       const response = await fetch(`/api/operator/runs/${runId}`);
-      const payload = await readJson<RunDetail>(response);
+      const payload = await readJson<RunDetail>(response, locale);
       if (requestId === detailRequestId.current) setDetail(payload);
     } catch (requestError) {
       if (requestId === detailRequestId.current) {
@@ -340,7 +340,7 @@ function App() {
     void (async () => {
       try {
         const response = await fetch("/api/operator/session");
-        const session = await readJson<{ actor_id: string | null }>(response);
+        const session = await readJson<{ actor_id: string | null }>(response, locale);
         if (active) {
           setOperatorId(session.actor_id ?? "");
           setIdentityStatus(session.actor_id ? "verified" : "unavailable");
@@ -424,7 +424,7 @@ function App() {
           }),
         },
       );
-      const payload = await readJson<RunDetail>(response);
+      const payload = await readJson<RunDetail>(response, locale);
       setDetail(payload);
       setReason("");
       setReviewConfirmed(false);
@@ -454,7 +454,7 @@ function App() {
           }),
         },
       );
-      const payload = await readJson<RunDetail>(response);
+      const payload = await readJson<RunDetail>(response, locale);
       setDetail(payload);
       setReason("");
       setReviewConfirmed(false);
