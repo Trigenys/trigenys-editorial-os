@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from scripts.news_scout import _summarize_results, _write_github_summary
 
 
