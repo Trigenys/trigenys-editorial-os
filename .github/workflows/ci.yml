@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - run: python -m pip install -e "./backend[dev]"
       - run: python -m ruff check scripts/news_scout.py backend/tests/test_news_scout_script.py
-      - run: python -m mypy scripts/news_scout.py backend/tests/test_news_scout_script.py
+      - run: python -m mypy backend/src backend/tests scripts
       - run: python -m pytest backend/tests/test_news_scout_script.py -q
 
   api:
