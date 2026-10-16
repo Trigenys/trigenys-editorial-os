@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
@@ -45,6 +47,71 @@ def _adapter_for(source: Source) -> SourceAdapter:
     )
 
 
+def _summarize_results(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    succeeded = [key for key, item in results.items() if item["status"] == "SUCCEEDED"]
+    failed = [key for key, item in results.items() if item["status"] == "FAILED"]
+    skipped = [key for key, item in results.items() if item["status"] == "SKIPPED"]
+
+    if failed and not succeeded:
+        status = "FAILED"
+    elif failed:
+        status = "DEGRADED"
+    elif succeeded:
+        status = "SUCCEEDED"
+    else:
+        status = "SKIPPED"
+
+    return {
+        "status": status,
+        "succeeded_sources": len(succeeded),
+        "failed_sources": len(failed),
+        "skipped_sources": len(skipped),
+        "created_items": sum(int(item.get("created_count", 0)) for item in results.values()),
+        "updated_items": sum(int(item.get("updated_count", 0)) for item in results.values()),
+        "failures": [
+            {
+                "source": key,
+                "kind": results[key].get("failure_kind") or "UNKNOWN",
+                "retryable": results[key].get("retryable"),
+            }
+            for key in failed
+        ],
+    }
+
+
+def _write_github_summary(summary: dict[str, Any]) -> None:
+    for failure in summary["failures"]:
+        print(
+            "::warning title=News Scout source failure::"
+            f"{failure['source']} failed ({failure['kind']}); "
+            f"retryable={failure['retryable']}"
+        )
+
+    summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_file:
+        return
+
+    lines = [
+        "### News Scout collection result",
+        "",
+        f"- Status: **{summary['status']}**",
+        f"- Sources succeeded: {summary['succeeded_sources']}",
+        f"- Sources failed: {summary['failed_sources']}",
+        f"- Sources skipped (paused/backoff/disabled): {summary['skipped_sources']}",
+        f"- Items created: {summary['created_items']}",
+        f"- Items updated: {summary['updated_items']}",
+    ]
+    if summary["failures"]:
+        lines.extend(["", "**Source failures**"])
+        lines.extend(
+            f"- `{failure['source']}`: {failure['kind']} "
+            f"(retryable: {failure['retryable']})"
+            for failure in summary["failures"]
+        )
+    with Path(summary_file).open("a", encoding="utf-8") as file:
+        file.write("\n".join(lines) + "\n\n")
+
+
 def scan(source_keys: list[str], *, force: bool) -> int:
     session_factory = get_session_factory()
     seed_news_sources(session_factory)
@@ -73,9 +140,17 @@ def scan(source_keys: list[str], *, force: bool) -> int:
         result = scout.ingest(source.id, adapter, force=force)
         results[key] = result.model_dump(mode="json")
 
-    print(json.dumps({"results": results}, indent=2, sort_keys=True, default=_json_default))
-    failed = [key for key, result in results.items() if result["status"] == "FAILED"]
-    return 1 if failed else 0
+    summary = _summarize_results(results)
+    print(
+        json.dumps(
+            {"results": results, "summary": summary},
+            indent=2,
+            sort_keys=True,
+            default=_json_default,
+        )
+    )
+    _write_github_summary(summary)
+    return 1 if summary["status"] == "FAILED" else 0
 
 
 def main() -> int:
