@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "Trigenys Editorial OS",
-  "stage": "foundation",
+  "stage": "prototype",
   "tagline": "A reusable, audit-oriented editorial workflow engine with traceable source discovery, configurable agents and explicit human approval gates.",
   "problem": "Automated news gathering can multiply duplicates or publish unverified claims if source provenance, editorial checks and approvals are blurred.",
   "scenario": "A configured Scout ingests approved RSS or manual sources, records canonical signals and provenance, then editorial agents can advance a story only through the configured research, QA and approval boundaries.",
