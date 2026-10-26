@@ -23,7 +23,7 @@ A configured Scout ingests approved RSS or manual sources, records canonical sig
 
 ## Implementation status
 
-**foundation.** Current repository status is Scout foundation. Passing ingestion tests does not mean autonomous news publication, factual correctness or deployed end-to-end scheduled delivery.
+**prototype.** Current repository status is Scout foundation. Passing ingestion tests does not mean autonomous news publication, factual correctness or deployed end-to-end scheduled delivery.
 
 **Implementation evidence:** [Scout ingestion and provenance](docs/source-registry-and-scout.md) · [Workflow gates](docs/architecture.md) · [Runbook](backend/README.md).
 
