@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "name": "Trigenys Editorial OS",
+  "stage": "foundation",
+  "tagline": "A reusable, audit-oriented editorial workflow engine with traceable source discovery, configurable agents and explicit human approval gates.",
+  "problem": "Automated news gathering can multiply duplicates or publish unverified claims if source provenance, editorial checks and approvals are blurred.",
+  "scenario": "A configured Scout ingests approved RSS or manual sources, records canonical signals and provenance, then editorial agents can advance a story only through the configured research, QA and approval boundaries.",
+  "differentiation": "A reusable vertical-agnostic core separates deterministic source ingestion from editorial judgment and preserves source records, gate decisions and evidence history.",
+  "architecture": "Source Registry and Scout -> canonical SourceItem with fetch provenance -> editorial intelligence -> research -> draft and creative assets -> editorial QA -> human gates -> optional CMS/distribution adapter.",
+  "limitations": "Current repository status is Scout foundation. Passing ingestion tests does not mean autonomous news publication, factual correctness or deployed end-to-end scheduled delivery.",
+  "capabilities": [
+    {
+      "name": "Scout ingestion and provenance",
+      "status": "shipped",
+      "description": "Source-backed implementation and documentation: scout ingestion and provenance.",
+      "evidence": "docs/source-registry-and-scout.md"
+    },
+    {
+      "name": "Workflow gates",
+      "status": "shipped",
+      "description": "Source-backed implementation and documentation: workflow gates.",
+      "evidence": "docs/architecture.md"
+    },
+    {
+      "name": "Runbook",
+      "status": "shipped",
+      "description": "Source-backed implementation and documentation: runbook.",
+      "evidence": "backend/README.md"
+    }
+  ],
+  "roadmap": [
+    {
+      "name": "Source reliability",
+      "exitCriteria": "Exercise retries, dedupe and source health against deterministic and approved live test feeds."
+    },
+    {
+      "name": "Editorial validation",
+      "exitCriteria": "Demonstrate research/evidence audit and human approval before CMS publishing."
+    },
+    {
+      "name": "Cross-vertical adoption",
+      "exitCriteria": "Test distinct vertical policy packs without forking the editorial runtime."
+    }
+  ],
+  "references": [
+    {
+      "name": "AppFactory README contract",
+      "url": "https://github.com/Trigenys/appfactory/blob/main/docs/product-readme-contract.md",
+      "relevance": "Central immutable product README audit without duplicating its renderer."
+    }
+  ],
+  "requiredHeadings": [
+    "What it does",
+    "Implementation status",
+    "Editorial pipeline"
+  ],
+  "requiredTerms": [
+    "Scout",
+    "Sources",
+    "approval",
+    "FastAPI",
+    "editorial",
+    "foundation"
+  ],
+  "requiredFiles": [
+    "docs/source-registry-and-scout.md",
+    "docs/architecture.md",
+    "docs/risk-and-confidence.md",
+    "backend/README.md"
+  ],
+  "presentation": {
+    "variant": "centered",
+    "headline": "Discover. Verify. Draft. Review. Then publish.",
+    "summary": "A reusable, audit-oriented editorial workflow engine with traceable source discovery, configurable agents and explicit human approval gates.",
+    "badges": [
+      {
+        "label": "Lifecycle",
+        "value": "foundation",
+        "color": "0969da",
+        "href": "#implementation-status"
+      },
+      {
+        "label": "Engineering",
+        "value": "RAIDER",
+        "color": "263238",
+        "href": "#engineering-boundary"
+      }
+    ],
+    "navigation": [
+      {
+        "label": "Overview",
+        "href": "#what-it-does"
+      },
+      {
+        "label": "Maturity",
+        "href": "#implementation-status"
+      },
+      {
+        "label": "Pipeline",
+        "href": "#editorial-pipeline"
+      },
+      {
+        "label": "Sources",
+        "href": "docs/source-registry-and-scout.md"
+      },
+      {
+        "label": "Architecture",
+        "href": "#architecture-direction"
+      },
+      {
+        "label": "Development",
+        "href": "#development"
+      },
+      {
+        "label": "Status",
+        "href": "#status"
+      }
+    ]
+  }
+}
