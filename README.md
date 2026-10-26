@@ -1,4 +1,44 @@
+<!-- appfactory:hero:start -->
+<div align="center">
+
 # Trigenys Editorial OS
+
+### Discover. Verify. Draft. Review. Then publish.
+
+**A reusable, audit-oriented editorial workflow engine with traceable source discovery, configurable agents and explicit human approval gates.**
+
+[![Lifecycle: foundation](https://img.shields.io/badge/Lifecycle-foundation-0969da)](#implementation-status)
+[![Engineering: RAIDER](https://img.shields.io/badge/Engineering-RAIDER-263238)](#editorial-pipeline)
+
+[**Overview**](#what-it-does) · [**Maturity**](#implementation-status) · [**Pipeline**](#editorial-pipeline) · [**Sources**](docs/source-registry-and-scout.md) · [**Architecture**](#architecture-direction) · [**Development**](#development) · [**Status**](#status)
+
+</div>
+
+---
+<!-- appfactory:hero:end -->
+
+## What it does
+
+A configured Scout ingests approved RSS or manual sources, records canonical signals and provenance, then editorial agents can advance a story only through the configured research, QA and approval boundaries.
+
+## Implementation status
+
+**prototype.** Current repository status is Scout foundation. Passing ingestion tests does not mean autonomous news publication, factual correctness or deployed end-to-end scheduled delivery.
+
+**Implementation evidence:** [Scout ingestion and provenance](docs/source-registry-and-scout.md) · [Workflow gates](docs/architecture.md) · [Runbook](backend/README.md).
+
+## Editorial pipeline
+
+```text
+Approved source → Scout/Source Registry → research and verification
+→ content + creative → editorial QA → approval gates → CMS/publishing
+```
+
+**A Scout signal is not a verified fact or a published article.** [Source Registry and Scout](docs/source-registry-and-scout.md) documents idempotent source items and separate fetch provenance, while [risk/confidence policy](docs/risk-and-confidence.md) governs decisions downstream.
+
+## Release and approval boundary
+
+The three configured approval gates cover topic, article/assets and publication. The repo's **Scout foundation** status is narrower than a fully deployed newsroom: integration adapters and future publication schedules must be validated separately.
 
 > Multi-agent editorial operating system for running a small, auditable AI-assisted newsroom from source discovery to publication and growth.
 
