@@ -8,7 +8,7 @@
 **A reusable, audit-oriented editorial workflow engine with traceable source discovery, configurable agents and explicit human approval gates.**
 
 [![Lifecycle: foundation](https://img.shields.io/badge/Lifecycle-foundation-0969da)](#implementation-status)
-[![Engineering: RAIDER](https://img.shields.io/badge/Engineering-RAIDER-263238)](#engineering-boundary)
+[![Engineering: RAIDER](https://img.shields.io/badge/Engineering-RAIDER-263238)](#editorial-pipeline)
 
 [**Overview**](#what-it-does) · [**Maturity**](#implementation-status) · [**Pipeline**](#editorial-pipeline) · [**Sources**](docs/source-registry-and-scout.md) · [**Architecture**](#architecture-direction) · [**Development**](#development) · [**Status**](#status)
 
